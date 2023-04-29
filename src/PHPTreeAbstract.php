@@ -86,9 +86,9 @@ abstract class PHPTreeAbstract
 						$route_regex = $attr->path;
 	
 						 //check if array not empty replace values
-						  if ( @is_array($attr->keys) AND !@empty($attr->keys) )
+						  if ( @is_array($attr->params) AND !@empty($attr->params) )
 						  {
-							  foreach( $attr->keys AS $key => $pat )
+							  foreach( $attr->params AS $key => $pat )
 							  {
 								  $route_regex = str_replace( "{".$key."}" ,  "($pat)" , $route_regex);
 							  }
