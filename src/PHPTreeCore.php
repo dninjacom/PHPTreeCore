@@ -89,31 +89,36 @@ class PHPTreeCore extends PHPTreeAbstract
 				if ($_SERVER['REQUEST_METHOD'] == 'GET' AND $route['request'] == Route::POST ) {
 
 					//Check if 404 is set from .env file 
-					if ( isset($this->env['route']) AND isset($this->env['route']['404']) AND !empty($this->env['route']['404']))
-					{
-						
-						//Route for 404 page should be registered in routes
-						if ( isset($this->routes[$this->env['route']['404']]) ){
-							
-							//Load 404 route
-							$this->loadRoute( $this->routes[$this->env['route']['404']] );
-							
-						}else{
-							header("HTTP/1.0 404 Not Found");
-							exit();
-						}
-					
-					}else{
-						header("HTTP/1.0 404 Not Found");
-						exit();
-					}
+					$this->print404();
 				
 				}else{
 					$this->loadRoute ( $route );
 				}
 			
 			}//End confirm route
+			
+			
+		}else
+		//Route not found!
+		{
+			$this->print404();
 		}
+	}
+	
+	
+	private function print404(){
+		
+		//Route for 404 page should be registered in routes
+		if ( isset($this->env['route']) AND isset($this->routes[$this->env['route']['404']]) ){
+			
+			//Load 404 route
+			$this->loadRoute( $this->routes[$this->env['route']['404']] );
+			
+		}else{
+			header("HTTP/1.0 404 Not Found");
+			exit();
+		}
+		
 	}
 	
 	private function loadRoute ( $route ){
