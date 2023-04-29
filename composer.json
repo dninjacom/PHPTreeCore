@@ -14,7 +14,7 @@
     },
     "autoload": {
         "psr-4": {
-            "PHPTree\\Core\\": "core"
+            "PHPTree\\Core\\": "src"
         }
     }
 }
