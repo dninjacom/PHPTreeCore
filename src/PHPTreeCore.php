@@ -82,6 +82,8 @@ class PHPTreeCore extends PHPTreeAbstract
 			//Confirm match and get params
 			if( @preg_match( "@^" . $route_key . "(/|)$@" , $this->request_uri , $m ) )
 			{
+				//Route matched keys by regex
+				$route['matched_keys']  = $m;
 				
 				//Route request method Checkpoint
 				if ($_SERVER['REQUEST_METHOD'] == 'GET' AND $route['request'] == Route::POST ) {
@@ -123,7 +125,7 @@ class PHPTreeCore extends PHPTreeAbstract
 			
 			foreach( $route['params'] AS $key => $pattren )
 			{
-				$this->params[$key] = $m[$i];
+				$this->params[$key] = $route['matched_keys'][$i];
 				$i++;
 			}
 		}
