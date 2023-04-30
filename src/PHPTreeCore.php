@@ -4,7 +4,7 @@ namespace PHPTree\Core;
 
 use PHPTree\Core\PHPTreeAbstract;
 use PHPTree\Core\PHPTreeCache AS Cache;
-use PHPTree\Core\PHPTeeRoute as Route;
+use PHPTree\Core\PHPTreeRoute as Route;
 
 class PHPTreeCore extends PHPTreeAbstract
 {  
