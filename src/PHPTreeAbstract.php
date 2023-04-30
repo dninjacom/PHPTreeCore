@@ -75,7 +75,7 @@ abstract class PHPTreeAbstract
 				 
 				 $reflectionMethod = new \ReflectionMethod($controller['class'], $method->getName());
 					 
-				 $attributes = $reflectionMethod->getAttributes('PHPTree\Core\PTRoute');
+				 $attributes = $reflectionMethod->getAttributes('PHPTree\Core\PHPTeeRoute');
 
 				//Method is route supported
 				if ( sizeof($attributes) > 0 )

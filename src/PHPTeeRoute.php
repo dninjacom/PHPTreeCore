@@ -5,7 +5,7 @@ namespace PHPTree\Core;
 use \Attribute;
 
 #[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
-class PTRoute 
+class PHPTeeRoute 
 {	
 	const GET  = 'get';
 	const POST = 'post';
@@ -13,7 +13,7 @@ class PTRoute
 	public function __construct(
 		public string $path,
 		public ?array $params = null,
-		public string $request = PTRoute::GET
+		public string $request = PHPTeeRoute::GET
 	){
 	}
 }
