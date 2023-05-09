@@ -1,147 +1,101 @@
 <?php
-
 namespace PHPTree\Core;
+
 
 use PHPTree\Core\PHPTreeAbstract;
 use PHPTree\Core\PHPTreeCache AS Cache;
-use PHPTree\Core\PHPTreeRoute as Route;
+use PHPTree\Core\PHPTreeErrors;
+use PHPTree\Core\PHPTreeLogs AS Logs;
+use PHPTree\Core\PHPTreeRoute AS Route;
 
-class PHPTreeCore extends PHPTreeAbstract
+class PHPTreeCore extends PHPTreeAbstract  
 {  
-	
-	/*
-	
-	   System Environment 
-	 
-	*/
-	protected $env;//system Environment
-	/*
-	   Requested url without domain name 
-	*/
-	protected $request_uri;
-	/*
-		Current active route Params
-	*/
-	public $params = array();
-	
+
 	function __destruct() {
+		$this->shutDown();
+	}
+	  
+   /*
+   		This is our shutdown function, in 
+ 		here we can do any last operations
+  		before the script is complete.
+   */
+	public function shutdown(){
 		
+		//Write Logs 
+		if ( $this->env['logs'] != null  )
+		{
+			//Log exceptions
+			if ( isset($this->env['logs']['exceptions']) AND $this->env['logs']['exceptions'] != null AND sizeof(PHPTreeErrors::$exceptions) > 0 )
+			{
+				Logs::writeLogs( DIR . '/' . $this->env['logs']['exceptions'],
+								 PHPTreeErrors::$exceptions);
+			}
+			
+			//Log errors 
+			if ( isset($this->env['logs']['errors']) AND $this->env['logs']['errors'] != null AND sizeof(PHPTreeErrors::$errors) > 0 )
+			{
+				Logs::writeLogs( DIR . '/' . $this->env['logs']['errors'],
+								 PHPTreeErrors::$errors);
+			}
+		}
+		
+		//Clean
 		$this->params   	= null;
 		$this->env      	= null;
 		$this->controllers  = null;
 		$this->routes		= null;
 		
+		//Clear logs 
+		PHPTreeErrors::$errors	   = array();
+		PHPTreeErrors::$exceptions = array();
 	}
 	  
 	public function __construct()
 	{
-		//Flush expired PTCaches 
-		Cache::flushExpired();
 		
-		//Read environment 
-		$this->env 			= $this->readYaml(DIR . "/.env.yaml");
-	    $this->request_uri	= $_SERVER['REQUEST_URI'];
+		//setup environment 
+		$this->server			= $_SERVER; 
+		$this->server['PTUri']	= $_SERVER['REQUEST_URI'];
 		
-		//Fetch and init all Extensions 
-		
-		//Fetch all available controllers PTCached version
-		if ( !Cache::exists('controllers', CACHE_TYPE_FILE)  )
-		{
-			$this->controllers = $this->getAllControllers(null);
-			
-			if ( $this->env['cache']['enabled'] )
-			{
-				Cache::set('controllers',$this->controllers,null,CACHE_TYPE_FILE);
-			}
-			
-		}else{
-			$this->controllers = Cache::get('controllers', CACHE_TYPE_FILE);
-		}
-		
-		//Fetch all available Routes PTCached version
-		if ( !Cache::exists('routes', CACHE_TYPE_FILE) )
-		{
-			$this->fetchRoutes( $this->controllers );
-			
-			if ( $this->env['cache']['enabled'] )
-			{
-				Cache::set('routes',$this->routes,null,CACHE_TYPE_FILE);
-			}
-			
-		}else{
-			$this->routes = Cache::get('routes', CACHE_TYPE_FILE);
-		}
-	
-	 	//Parse selected route url and register its params
-		if ( $filter_route = array_filter(array_keys($this->routes), array($this , 'filter_requested_route') )  )
-		{
-		
-			$route_key	  = $filter_route[array_keys($filter_route)[0]];
-			$route 		  = $this->routes[$route_key];
-	
-			//Confirm match and get params
-			if( @preg_match( "@^" . $route_key . "(/|)$@" , $this->request_uri , $m ) )
-			{
-				//Route matched keys by regex
-				$route['matched_keys']  = $m;
-				
-				//Route request method Checkpoint
-				if ($_SERVER['REQUEST_METHOD'] == 'GET' AND $route['request'] == Route::POST ) {
+		register_shutdown_function(array($this, 'shutdown'));
 
-					//Check if 404 is set from .env file 
-					$this->print404();
-				
-				}else{
-					$this->loadRoute ( $route );
-				}
-			
-			}//End confirm route
-			
-			
-		}else
-		//Route not found!
-		{
-			$this->print404();
-		}
-	}
+		$this->setup_system_environment();
 	
-	
-	private function print404(){
 		
-		//Route for 404 page should be registered in routes
-		if ( isset($this->env['route']) AND isset($this->routes[$this->env['route']['404']]) ){
+		if ( $this->env != null ){
 			
-			//Load 404 route
-			$this->loadRoute( $this->routes[$this->env['route']['404']] );
+			/*
+			
+				Load all available Controllers 
+				then check with system cache if 
+				there is available version of all controllers 
+				PS : if caching is enabled you need to flush the caches every time you add 
+				a new controller 
+			
+			*/
+			$this->loadControllers();
+			
+			/*
+			
+				Same logic as Controllers with caching system,
+				PS : an advanced algorithm is added to cache most visited routes 
+				into a memory cache
+			
+			*/
+			$this->loadRoutes();
+		
+	 		/*
+			 
+			 	Last step is to parse the request url 
+				find its route or go 404
+			 
+			 */
+			$this->parseRouteUrl();
 			
 		}else{
-			header("HTTP/1.0 404 Not Found");
-			exit();
+			throw new \Exception('File ' . DIR . '.env.yaml does not exists , or not readable .');
 		}
-		
 	}
 	
-	private function loadRoute ( $route ){
-		
-		//Get current route params
-		if ( is_array($route['params']) AND sizeof($route['params']) > 0  )
-		{
-			$i = 1;
-			
-			foreach( $route['params'] AS $key => $pattren )
-			{
-				$this->params[$key] = $route['matched_keys'][$i];
-				$i++;
-			}
-		}
-		
-		//Execute the route 
-		include_once($route['path']);
-		
-		ob_start();
-		call_user_func( array( new $route['class']($this) , $route['method'] ), $this );
-		ob_flush();
-	}
-	
-
 }

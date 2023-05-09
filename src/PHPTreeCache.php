@@ -24,6 +24,14 @@ class PHPTreeCache {
 	
 	/*
 		Flush all expired cache files
+		Call every 1 or 3 minutes from cronJob 
+		
+		Example : 
+			
+			use PHPTree\Core\PHPTreeCache AS Cache;
+	
+			//Flush expired PTCaches 
+			Cache::flushExpired();
 	*/	
 	public static function flushExpired()
 	{

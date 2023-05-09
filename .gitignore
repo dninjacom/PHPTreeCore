@@ -1,4 +1,7 @@
+.env.yaml
 index.php
 /vendor
+/var
+/controllers
 .nova
 .git
