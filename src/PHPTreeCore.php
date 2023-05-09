@@ -23,7 +23,7 @@ class PHPTreeCore extends PHPTreeAbstract
 	public function shutdown(){
 		
 		//Write Logs 
-		if ( $this->env['logs'] != null  )
+		if ( isset( $this->env['logs'] )  )
 		{
 			//Log exceptions
 			if ( isset($this->env['logs']['exceptions']) AND $this->env['logs']['exceptions'] != null AND sizeof(PHPTreeErrors::$exceptions) > 0 )
