@@ -8,16 +8,8 @@ use PHPTree\Core\PHPTreeRoute AS Route;
 
 abstract class PHPTreeAbstract 
 {  
-	
-
-	/*
-	   List of requested yaml files
-	   no cache
-	*/
-	private $yaml			 = array();
-	private $ndocs 			 = 0;
 	protected $routes;
-	protected $controllers	 = array();
+	protected $controllers = null;
 	/*
 	
 	   $_SERVER
@@ -29,152 +21,131 @@ abstract class PHPTreeAbstract
 	   System Environment 
 	 
 	*/
-	protected $env;
+	protected $env =  null;
 	/*
+	
 		Current active route Params
+		
 	*/
 	public $params = array();
-	
-	
-	protected function setup_system_environment(){
+	/*
 		
+		All Caching instance
+	
+	*/
+	public Cache $cache;
+	private $cached_route = null;
+	/*
+	
+		Setup env.yaml
+		This file has the core information for the whole system
 		
-		$this->env 	= $this->readYaml(DIR . "/.env.yaml");
-
+	*/
+	protected function setup_system_environment(): void {
+		
+		$this->server			= $_SERVER; 
+		$this->server['PTUri']	= parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
+		
+		$this->cache = new Cache();
+		
+		$this->env	 = $this->cache->getEnvironment();
 	}
 	
 	/*
-	   Read YAML file and return values 
-	   No cache
-	*/
-	function readYaml( $fullPath )
-	{
-		
-		if ( isset($this->yaml[md5($fullPath)]) AND $this->yaml[md5($fullPath)] != null )
-		{
-			return $this->yaml[md5($fullPath)];
-		}
 	
-		if ( file_exists($fullPath) AND !is_dir($fullPath) ) {
-			
-			$this->yaml[md5($fullPath)] = file_get_contents( $fullPath );
-			
-			$this->yaml[md5($fullPath)] = yaml_parse($this->yaml[md5($fullPath)], 
-													 0, 
-													 $this->ndocs, 
-													 array());
-													 
-			return $this->yaml[md5($fullPath)];
-			
-		}else{
-			return false ;
-		}
-	}
-	
-	/*
-		Load up all controllers into the system
-		Will use enabled caching extensions  
-	*/
-	protected function loadRoutes() : void{
+		Load and execute the current requested URL
 		
-		//Fetch all available Routes cached version
-		if ( !Cache::exists('routes', CACHE_TYPE_FILE) )
+	*/
+	protected function LoadAndExecuteRequest() : void {
+		
+		/*
+		
+			For fast load the route without reFetching and Filtering 
+			get the Requested route from caching apis.
+		
+		*/
+		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
 		{
-			$this->routes = Route::routesByControllers( $this->controllers );
+			//Find the ruote in memcached 
+			$this->$cached_route = $this->cache->get( "ruote_" . md5( $this->server['PTUri'] ) , CACHE_TYPE_MEM );
 			
-			if ( $this->env['cache']['enabled'] )
+			//Route already cached! great lets load it
+			if ( is_array($this->$cached_route) AND !empty($this->$cached_route) )
 			{
-				Cache::set('routes',$this->routes,null,CACHE_TYPE_FILE);
+				$this->loadRoute( $this->$cached_route );
+				return;
 			}
-			
-		}else{
-			$this->routes = Cache::get('routes', CACHE_TYPE_FILE);
 		}
-		
-	}
-	
-	/*
-		Load up all controllers into the system
-		Will use enabled caching extensions  
-	*/
-	protected function loadControllers() : void{
 		
 		//Fetch all available controllers cached version
-		if ( !Cache::exists('controllers', CACHE_TYPE_FILE)  )
+		if ( !$this->cache->exists('controllers', CACHE_TYPE_FILE)  )
 		{
 			$this->controllers = $this->prepareControllers(null);
 			
-			if ( $this->env['cache']['enabled'] )
+			if ( $this->cache->isEnabled(CACHE_TYPE_FILE) )
 			{
-				Cache::set('controllers',$this->controllers,null,CACHE_TYPE_FILE);
+				$this->cache->set('controllers',$this->controllers,null,CACHE_TYPE_FILE);
 			}
 			
 		}else{
-			$this->controllers = Cache::get('controllers', CACHE_TYPE_FILE);
+			$this->controllers = $this->cache->get('controllers', CACHE_TYPE_FILE);
 		}
+
+
+		$this->loadRoutes();
+	}
+	/*
+	
+		Load all controllers into the system
+		Will use enabled caching extensions  
+		
+	*/
+	protected function loadRoutes() : void {
+		
+		//Fetch all available Routes cached version
+		if ( !$this->cache->exists('routes', CACHE_TYPE_FILE) )
+		{
+			$this->routes = Route::routesByControllers( $this->controllers );
+			
+			if ( $this->cache->isEnabled(CACHE_TYPE_FILE) )
+			{
+				$this->cache->set('routes',$this->routes,null,CACHE_TYPE_FILE);
+			}
+			
+		}else{
+			$this->routes = $this->cache->get('routes', CACHE_TYPE_FILE);
+		}
+		
+		$this->findRoute();
 	}
 	
 	/*
-	    Get all @controller_ files with class info 
-		this will also fetch sub folders 
-		No cache
+	
+		Parse selected route 
+		
 	*/
-	private function prepareControllers( $folder = null ) : array
-	{
+	protected function findRoute() : void {
+
+		/*
 		
-		if ( $this->env == null )
-		{
-			return array();
-		}
-		
-		$path  = DIR . '/' . $this->env['system']['controllers'] . '/' . $folder; 
+			Find route by Regex 
 			
-		   foreach (new \DirectoryIterator($path) as $file)
-		   {
-			   if( $file->isDot() ) continue;
-		
-		  	   if ( is_dir( $path .  $file->getFilename() ) )
-			   {
-				   $this->getAllControllers( $file->getFilename() . "/" );
-			   }else
-			   if( $file->isFile() )
-			   {
-					if ( preg_match('@controller_([a-z-A-Z-0-9_-]+)@',  $file->getFilename() , $m) )
-					{
-					   $this->controllers[$m[1]]['path']    = $path .  $file->getFilename() ;
-					   $this->controllers[$m[1]]['folder']  = $path;
-					   $this->controllers[$m[1]]['class']   = $m[1];
-					}
-			   }
-		   }	
-		
-		return $this->controllers;
-	}
-		
-	protected function parseRouteUrl(){
-		
+		*/
 		if ( $this->routes != null and
-			 $filter_route = array_filter(array_keys($this->routes), array($this , 'filter_requested_route') )  )
+			 $filter_route = array_filter(array_keys($this->routes), 
+			 							  array($this , 'filter_requested_route') )  )
 		{
 		
 			$route_key	  = $filter_route[array_keys($filter_route)[0]];
 			$route 		  = $this->routes[$route_key];
 		
-			//Confirm match and get params
-			if( @preg_match( "@^" . $route_key . "(/|)$@" , $this->server['PTUri'] , $m ) )
+			/*
+				Confirm route and get Params
+			*/
+			if( @preg_match( "@^" . $route_key . "(/|)$@" , $this->server['PTUri'] , $m) )
 			{
-				//Route matched keys by regex
-				$route['matched_keys']  = $m;
-				
-				//Route request method Checkpoint
-				if ($_SERVER['REQUEST_METHOD'] == 'GET' AND 
-					$route['request'] == Route::POST ) {
-		
-					$this->print404();
-				
-				}else{
-					$this->loadRoute ( $route );
-				}
+				$route['values']  = array_splice($m, 1);//Remove full url matching
+				$this->loadRoute( $route );
 			
 			}//End confirm route
 			else{
@@ -187,18 +158,54 @@ abstract class PHPTreeAbstract
 			$this->print404();
 		}
 	}
+	/*
 	
-	private function loadRoute ( $route ) : void{
+		Load route method and execute it 
+	
+	*/
+	private function loadRoute( $route ) : void {
+		
+		//Route request method Checkpoint
+		if ($_SERVER['REQUEST_METHOD'] == 'GET' AND 
+			$route['request'] == Route::POST ) {
+		
+			//Alert Dev
+			if ( !$this->env['prod'] ){
+				throw new \Exception("Error (400) : " . $route_key. " . accepting only 'POST' when the request was 'GET'");
+				return;
+			}else{
+				http_response_code(400);
+				die();
+			}
+		}
+		/*
+		
+			Cache Ruote
+		
+		*/
+		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
+		{
+			//Already cached!
+			if ( $this->$cached_route != null )
+			{
+				$this->cache->getMem()->touch( "ruote_" . md5( $this->server['PTUri'] ) ,
+											   $this->env['cache']['memcached']['ruote_ttl'] );
+				
+			}else{
+				$this->cache->set("ruote_" . md5( $this->server['PTUri'] ) , 
+								   $route ,
+								   $this->env['cache']['memcached']['ruote_ttl'] ,
+								   CACHE_TYPE_MEM );
+			}
+		}
 		
 		//Get current route params
-		if ( is_array($route['params']) AND sizeof($route['params']) > 0  )
+		if ( is_array($route['keys']) AND 
+			 sizeof($route['keys']) > 0  )
 		{
-			$i = 1;
-			
-			foreach( $route['params'] AS $key => $pattren )
+			foreach( $route['keys'] AS $i => $key )
 			{
-				$this->params[$key] = $route['matched_keys'][$i];
-				$i++;
+				Route::$params[$key] = $route['values'][$i];
 			}
 		}
 		
@@ -208,9 +215,47 @@ abstract class PHPTreeAbstract
 	}
 	
 	/*
-		Filter requested Route
+	    Get all @controller_ files with class info 
+		this will also fetch sub folders 
+		No cache
 	*/
-	protected function filter_requested_route($route) : bool{
+	private function prepareControllers( $folder = null ) : array {
+		
+		if ( $this->env == null )
+		{
+			return array();
+		}
+		
+		$path  = DIR . '/' . $this->env['system']['controllers'] . '/' . $folder; 
+			
+	   foreach (new \DirectoryIterator($path) as $file)
+	   {
+		   if( $file->isDot() ) continue;
+	
+	  	   if ( is_dir( $path .  $file->getFilename() ) )
+		   {
+			   $this->getAllControllers( $file->getFilename() . "/" );
+		   }else
+		   if( $file->isFile() )
+		   {
+				if ( preg_match('@controller_([a-z-A-Z-0-9_-]+)@',  $file->getFilename() , $m) )
+				{
+				   $this->controllers[$m[1]]['path']    = $path .  $file->getFilename() ;
+				   $this->controllers[$m[1]]['folder']  = $path;
+				   $this->controllers[$m[1]]['class']   = $m[1];
+				}
+		   }
+	   }	
+		
+		return $this->controllers;
+	}
+		
+	/*
+	
+		Filter requested Route
+		
+	*/
+	protected function filter_requested_route($route) : bool {
 		
 		//Match with regex
 		if( @preg_match( "@^" . $route . "(/|)$@" , $this->server['PTUri'] , $m ) )
@@ -221,7 +266,18 @@ abstract class PHPTreeAbstract
 		return false;
 	}
 	
-	private function print404() : void{
+	/*
+	
+		404
+		
+	*/
+	private function print404() : void {
+		
+		//Dev mode
+		if ( !$this->env['prod'] ){
+			throw new \Exception("Route (404) : " . $this->server['PTUri'] . " Not found! ");
+			return;
+		}
 		
 		//Route for 404 page maybe registered in routes
 		if ( isset($this->env['route']) AND 
@@ -234,5 +290,7 @@ abstract class PHPTreeAbstract
 			http_response_code(404);
 		}
 	}
+	
+
 	
 }

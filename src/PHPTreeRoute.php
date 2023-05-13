@@ -10,9 +10,12 @@ class PHPTreeRoute
 	const GET  = 'get';
 	const POST = 'post';
 	
+	public static $params;
+	
+	
 	public function __construct(
 		public string $path,
-		public ?array $params = null,
+		public ?array $keys = null,
 		public string $request = PHPTreeRoute::GET
 	){
 		
@@ -57,25 +60,45 @@ class PHPTreeRoute
 						  
 						$attr 		 = $attribute->newInstance();
 						$route_regex = $attr->path;
-	
-						 //check if array not empty replace values
-						  if ( @is_array($attr->params) AND !@empty($attr->params) )
+						$keys	     = array();
+						
+						 /*
+						 
+						 	Replace keys with its regex if path has keys
+							  
+						 */
+						  if ( @is_array($attr->keys) AND !@empty($attr->keys) )
 						  {
-							  foreach( $attr->params AS $key => $pat )
+							  foreach( $attr->keys AS $key => $pat )
 							  {
+								  $keys[] = $key;
 								  $route_regex = str_replace( "{".$key."}" ,  "($pat)" , $route_regex);
 							  }
 						  }
+						  /*
+						  		
+							 ReSort the  keys ordering based on url path sorting
+						  
+						  */
+						  if ( sizeof($keys) > 0 )
+						  {
+							if ( preg_match_all('#\b(' . join("|",$keys) . ')\b#', $attr->path, $matches)) 
+							  {
+								  $keys = $matches[0];
+							  }  
+						  }
+						 
 						  
 						//Register all Route information  
-						$routes[$route_regex] = array('url_regex'  => $attr->path,
-													  'method'	 => $method->name,
-													  'request'	 => $attr->request,
-													  'params' 	 => $attr->params);
+						$routes[$route_regex] = array('url_regex'   => $route_regex,
+													  'url_path' 	=> $attr->path,
+													  'method'	 	=> $method->name,
+													  'request'	 	=> $attr->request,
+													  'keys' 	 	=> $keys);
 															
 						$routes[$route_regex] = array_merge($routes[$route_regex], $controller);
 						
-						unset($attr,$attributes,$reflectionMethod);
+						unset($attr,$attributes,$reflectionMethod,$keys);
 					  }
 				 }
 			 }//End loop
