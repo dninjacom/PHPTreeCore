@@ -19,6 +19,12 @@ class PHPTreeCore extends PHPTreeAbstract
    */
 	public function shutdown() : void {
 		
+		//Already killed
+		if ( $this->env == null )
+		{
+			return;
+		}
+	
 		//Write Logs 
 		if ( isset( $this->env['logs'] )  )
 		{
@@ -41,21 +47,30 @@ class PHPTreeCore extends PHPTreeAbstract
 			}
 		}
 		
-		//Clean
-		$this->params   	= null;
-		$this->env      	= null;
-		$this->controllers  = null;
-		$this->routes		= null;
-		
 		//Disconnect servers
 		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
 		{
 			$this->cache->disconnect(CACHE_TYPE_MEM);
 		}
 		
+		if ( $this->cache->isEnabled(CACHE_TYPE_REDIS) )
+		{
+			$this->cache->disconnect(CACHE_TYPE_REDIS);
+		}
+		
 		//Clear logs 
 		PHPTreeErrors::$errors	   = array();
 		PHPTreeErrors::$exceptions = array();
+			
+		//Clean
+		$this->params   		= null;
+		$this->env      		= null;
+		$this->controllers 		= null;
+		$this->routes			= null;
+		$this->cache->cached	= null;
+		$this->cache			= null;
+		
+		//Bye bye
 	}
 	  
 	public function __construct() {

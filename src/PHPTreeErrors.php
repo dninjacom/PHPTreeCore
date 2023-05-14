@@ -9,7 +9,7 @@ class PHPTreeErrors extends \Exception
 	public static $logs_file	 = false;
 	public static $exceptions 	 = array();
 	public static $errors 		 = array();
-	public static $silence		 = array(E_USER_WARNING,E_WARNING);
+	public static $silence		 = array(E_USER_WARNING,E_WARNING,E_DEPRECATED);
 	
 	
 	/*

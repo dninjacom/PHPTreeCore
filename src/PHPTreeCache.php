@@ -20,9 +20,116 @@ interface PHPTreeCacheIFace {
 	//If file exists
 	public function exists($key) : bool;
 	//Flush all caches 
-	public function flush() : void ;	
+	public function flush() : void;	
 }
 
+	
+/*
+
+	REDIS
+	https://redis.io/
+
+*/
+class PTCR implements PHPTreeCacheIFace { 
+	
+	var $instance;
+
+	var $connected = false;
+	
+	/*
+		REDIS
+	*/
+	public function __construct(){
+	
+		if ( class_exists('Redis') )
+		{
+			$this->$instance = new \Redis();
+		}
+		
+	}
+	public function quit(){
+		
+		if ( $this->$instance != null  )
+		{
+			$this->$instance->close();
+			$this->connected = false;
+		}
+	}
+	/*
+		REDIS::SET
+	*/		
+	public function set($key,$value, $timestamp = 0) : bool{
+		
+		if ( !$this->connected )
+		{
+			throw new \Exception("Redis not connected!");
+		}
+		
+		$this->$instance->set($key, is_array($value) ? json_encode($value) : $value );
+		
+		return true;
+	}
+	/*
+		REDIS::GET
+	*/		
+	public function get($key) {
+		
+		if ( !$this->connected )
+		{
+			throw new \Exception("Redis not connected!");
+		}
+		
+		$value = $this->$instance->get($key);
+		return ( @json_decode($value) ) ? json_decode($value,true) : $value;
+	}
+	/*
+		REDIS::EXISTS
+	*/	
+	public function exists($key) :  bool {
+		
+		if ( !$this->connected )
+		{
+			throw new \Exception("Redis not connected!");
+		}
+		
+		return $this->$instance->exists($key);
+	}
+	/*
+		REDIS::DELETE
+	*/	
+	public function delete($key) : void{
+		
+		if ( !$this->connected )
+		{
+			throw new \Exception("Redis not connected!");
+		}
+		
+		$this->$instance->del($key);
+	}
+	/*
+		REDIS::FLUSH
+	*/	
+	public function flush() : void{
+		
+		if ( !$this->connected )
+		{
+			throw new \Exception("Redis not connected!");
+		}
+		
+		$this->$instance->flushAll();
+	}
+	/*
+		REDIS::ADD SERVER
+	*/
+	public function connect(string $host, int $port, int $timeout = 0){
+		
+		$this->$instance->connect($host, $port, $timeout);
+		
+		$this->connected   =  ( $this->$instance->time() != null );
+		
+	}	
+	
+}
 /*
 
 	Memcached
@@ -90,7 +197,7 @@ class PTCMEM implements PHPTreeCacheIFace {
 			throw new \Exception("Memcached not connected!");
 		}
 		
-		return $this->$instance->get($key);
+		return $this->$instance->get($key) != null;
 	}
 	/*
 		MEM::DELETE
@@ -172,7 +279,8 @@ class PTCF implements PHPTreeCacheIFace {
 			
 				$cacheInfo   	  = ( is_array($cacheInfo) ) ? $cacheInfo : json_decode(base64_decode($cacheInfo),true);
 				$cacheInfo[$name] = array('file' => $filePath,
-										   'ttl'  => $timestamp );
+										  'ttl'  => $timestamp,
+									   	  'key'  => $key);
 									 
 				$cacheInfo   = base64_encode(json_encode($cacheInfo,true));					 
 				$cacheInfo	 = '<?php $cacheInfo = "' . $cacheInfo . '"; ?>';	
@@ -287,6 +395,12 @@ class PHPTreeCache {
 	protected  $mem;
 	/*
 	
+		Redis 
+	 
+	*/			
+	protected $redis;
+	/*
+	
 	   File cache
 	 
 	*/	
@@ -297,7 +411,13 @@ class PHPTreeCache {
 	 
 	*/
 	protected $env;
+	/*
 	
+	   Cached params
+	 
+	*/
+	public $cached = array();
+		
 	/*
 	
 		Read and cache Env 
@@ -321,7 +441,7 @@ class PHPTreeCache {
 		{
 			$this->env 	= $this->readYaml( DIR . "/.env.yaml");
 			
-			if ( $this->env['cache']['file']['enabled'] )
+			if ( $this->env['cache']['file']['enabled'] AND $this->env['prod'] )
 			{
 				$this->set('PTEnv',$this->env,null,CACHE_TYPE_FILE);
 			}
@@ -330,6 +450,34 @@ class PHPTreeCache {
 		//No cached :: read and cache if enabled
 		{
 			$this->env = $this->get('PTEnv', CACHE_TYPE_FILE);
+		}
+		
+		//Setup redis if enabled 
+		if( $this->env != null AND 
+			$this->isEnabled(CACHE_TYPE_REDIS) AND
+			isset($this->env['cache']) AND 
+			isset($this->env['cache']['redis']) 
+			)
+		{
+			
+			//Redis is not installed!
+			if ( !class_exists('Redis') ){
+				throw new \Exception("Cache type Redis enabled but 'Redis' is not installed.");
+			}
+			
+			//initialize Redis
+			$this->redis = new PTCR();
+			
+			if ( isset($this->env['cache']['redis']['server']) AND 
+		   		 isset($this->env['cache']['redis']['port']) AND 
+				 isset($this->env['cache']['redis']['timeout']))
+			{
+				
+				$this->redis->connect($this->env['cache']['redis']['server'], 
+									  $this->env['cache']['redis']['port'],
+									  $this->env['cache']['redis']['timeout']);
+				
+			}
 		}
 		
 		//Setup memcached if enabled
@@ -364,6 +512,12 @@ class PHPTreeCache {
 		return $this->mem->$instance;
 	}
 	/*
+		return Redis instance
+	*/
+	public function getRedis() : \Redis  | null{
+		return $this->redis->$instance;
+	}
+	/*
 		
 		return full Environment array
 		
@@ -379,13 +533,24 @@ class PHPTreeCache {
 	{
 		switch($type)
 		{
+			
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					$this->redis->flush();
+				}
+					
+			break;
 			/*
 			Memcached
 			*/
 			case CACHE_TYPE_MEM:
 				
 				if ( $this->mem != null ){
-					 $this->mem->flush();
+					$this->mem->flush();
 				}
 				
 			break;
@@ -408,13 +573,23 @@ class PHPTreeCache {
 		switch($type)
 		{
 			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					 $this->redis->quit();
+				}
+					
+			break;
+			/*
 				Memcached
 			*/
 			case CACHE_TYPE_MEM:
 				
 				if ( $this->mem != null ){
 					 $this->mem->quit();
-				 }
+				}
 				
 			break;	
 		}
@@ -426,6 +601,15 @@ class PHPTreeCache {
 		
 		switch($type)
 		{
+			
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				return $this->env['cache']['redis']['enabled'];
+					
+			break;
 			/*
 				Memcached
 			*/
@@ -455,6 +639,17 @@ class PHPTreeCache {
 		
 		switch($type)
 		{
+			
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					return $this->redis->exists($key);
+				}
+					
+			break;
 			/*
 				Memcached
 			*/
@@ -487,6 +682,17 @@ class PHPTreeCache {
 		
 		switch($type)
 		{
+			
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					return $this->redis->delete($key);
+				}
+					
+			break;
 			/*
 				Memcached
 			*/
@@ -520,6 +726,16 @@ class PHPTreeCache {
 		
 		switch($type)
 		{
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					return $this->redis->get($key);
+				}
+					
+			break;
 			/*
 				Memcached
 			*/
@@ -555,10 +771,20 @@ class PHPTreeCache {
 		@return boolean if set or not.
 	*/
 	public function set( $key , $array , $timestamp = 0 , $type = CACHE_TYPE_FILE ){
-	
+
 		switch($type)
 		{
 			
+			/*
+				Redis
+			*/
+			case CACHE_TYPE_REDIS:
+				
+				if ( $this->redis != null ){
+					return $this->redis->set($key , $array , $timestamp );
+				}
+					
+			break;
 			/*
 				Memcached
 			*/
@@ -574,7 +800,10 @@ class PHPTreeCache {
 			*/
 			case CACHE_TYPE_FILE:
 				
-				return  $this->file->set($key , $array , $timestamp );
+				if ( $this->isEnabled(CACHE_TYPE_FILE) )
+				{
+					return $this->file->set($key , $array , $timestamp );
+				}
 				
 			break;		
 			default : 
@@ -590,7 +819,7 @@ class PHPTreeCache {
 	private $ndocs 		 = 0;
 	private $yaml		 = array();
 	
-	function readYaml( $fullPath ) : array | false {
+	public function readYaml( $fullPath ) : array | false {
 		
 		//Return cached version 
 		if ( isset($this->yaml[md5($fullPath)]) AND $this->yaml[md5($fullPath)] != null )

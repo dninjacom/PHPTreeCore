@@ -90,15 +90,19 @@ class PHPTreeRoute
 						 
 						  
 						//Register all Route information  
-						$routes[$route_regex] = array('url_regex'   => $route_regex,
-													  'url_path' 	=> $attr->path,
-													  'method'	 	=> $method->name,
-													  'request'	 	=> $attr->request,
-													  'keys' 	 	=> $keys);
-															
-						$routes[$route_regex] = array_merge($routes[$route_regex], $controller);
+						$mapping_key = explode("/", $attr->path);
+						$mapping_key = array_splice($mapping_key, 1);
+						$mapping_key = sizeof($mapping_key);
 						
-						unset($attr,$attributes,$reflectionMethod,$keys);
+						$routes[$mapping_key][$route_regex] = array('url_regex'   => $route_regex,
+													  				'url_path' 	  => $attr->path,
+													  				'method'	  => $method->name,
+													  				'request'	  => $attr->request,
+													  				'keys' 	 	  => $keys);
+															
+						$routes[$mapping_key][$route_regex] = array_merge($routes[$mapping_key][$route_regex], $controller);
+						
+						unset($attr,$attributes,$reflectionMethod,$keys,$mapping_key);
 					  }
 				 }
 			 }//End loop

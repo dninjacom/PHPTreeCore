@@ -8,33 +8,27 @@ use PHPTree\Core\PHPTreeRoute AS Route;
 
 abstract class PHPTreeAbstract 
 {  
-	protected $routes;
-	protected $controllers = null;
+	protected array | null $routes;
+	protected array | null $controllers = array();
 	/*
 	
 	   $_SERVER
 	 
 	*/
-	protected $server;
+	protected array | null $server;
 	/*
 	
 	   System Environment 
 	 
 	*/
-	protected $env =  null;
-	/*
-	
-		Current active route Params
-		
-	*/
-	public $params = array();
+	protected array | null $env =  null;
 	/*
 		
-		All Caching instance
+		Caching instance
 	
 	*/
-	public Cache $cache;
-	private $cached_route = null;
+	public Cache | null $cache;
+
 	/*
 	
 		Setup env.yaml
@@ -60,39 +54,102 @@ abstract class PHPTreeAbstract
 		
 		/*
 		
-			For fast load the route without reFetching and Filtering 
-			get the Requested route from caching apis.
+			Fetch controllers 
+			- cached version will return if enabled
 		
 		*/
-		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
-		{
-			//Find the ruote in memcached 
-			$this->$cached_route = $this->cache->get( "ruote_" . md5( $this->server['PTUri'] ) , CACHE_TYPE_MEM );
-			
-			//Route already cached! great lets load it
-			if ( is_array($this->$cached_route) AND !empty($this->$cached_route) )
-			{
-				$this->loadRoute( $this->$cached_route );
-				return;
-			}
-		}
+		$this->fetchControllers();
+		/*
 		
-		//Fetch all available controllers cached version
-		if ( !$this->cache->exists('controllers', CACHE_TYPE_FILE)  )
+			Fetch Routes 
+			- cached version will return if enabled
+		
+		*/		
+		$this->loadRoutes();
+		/*
+		
+			Fetch Routes
+			- Filter and find requested route then execute it
+		
+		*/	
+		$this->findRoute();
+		
+	}
+	/*
+	
+		Load all controllers 
+		fetch from cached version 
+		or fetch all available controllers
+		
+	*/	
+	private function fetchControllers() : void {
+	
+		/*
+		
+			CACHE By Memcached
+		
+		*/	
+		if ($this->env['controller']['cacheType'] == CACHE_TYPE_MEM AND 
+			$this->cache->isEnabled(CACHE_TYPE_MEM)  )
+		{
+			
+			if (  $this->cache->exists('PTControllers', CACHE_TYPE_MEM)  )
+			{
+				$this->controllers = $this->cache->get('PTControllers', CACHE_TYPE_MEM);
+				
+			}else{
+				$this->controllers = $this->prepareControllers(null);
+				$this->cache->set('PTControllers',$this->controllers,null,CACHE_TYPE_MEM);
+			}
+			
+		}else	
+		/*
+		
+			CACHE By Redis
+		
+		*/	
+		if ($this->env['controller']['cacheType'] == CACHE_TYPE_REDIS AND 
+			$this->cache->isEnabled(CACHE_TYPE_REDIS)  )
+		{
+			
+			if (  $this->cache->exists('PTControllers', CACHE_TYPE_REDIS)  )
+			{
+				$this->controllers = $this->cache->get('PTControllers', CACHE_TYPE_REDIS);
+				
+			}else{
+				$this->controllers = $this->prepareControllers(null);
+				$this->cache->set('PTControllers',$this->controllers,null,CACHE_TYPE_REDIS);
+			}
+			
+		}else
+		/*
+		
+			CACHE By Files
+		
+		*/	
+		if ($this->env['controller']['cacheType'] == CACHE_TYPE_FILE AND 
+			$this->cache->isEnabled(CACHE_TYPE_FILE)  )
+		{
+			
+			if (  $this->cache->exists('PTControllers', CACHE_TYPE_FILE)  )
+			{
+				$this->controllers = $this->cache->get('PTControllers', CACHE_TYPE_FILE);
+				
+			}else{
+				$this->controllers = $this->prepareControllers(null);
+				$this->cache->set('PTControllers',$this->controllers,null,CACHE_TYPE_FILE);
+			}
+			
+		}else
+		/*
+		
+			NO CACHE
+		
+		*/
 		{
 			$this->controllers = $this->prepareControllers(null);
-			
-			if ( $this->cache->isEnabled(CACHE_TYPE_FILE) )
-			{
-				$this->cache->set('controllers',$this->controllers,null,CACHE_TYPE_FILE);
-			}
-			
-		}else{
-			$this->controllers = $this->cache->get('controllers', CACHE_TYPE_FILE);
 		}
-
-
-		$this->loadRoutes();
+	
 	}
 	/*
 	
@@ -102,21 +159,72 @@ abstract class PHPTreeAbstract
 	*/
 	protected function loadRoutes() : void {
 		
-		//Fetch all available Routes cached version
-		if ( !$this->cache->exists('routes', CACHE_TYPE_FILE) )
+		/*
+	
+			CACHE By Memcached
+		
+		*/	
+		if ($this->env['route']['cacheType'] == CACHE_TYPE_MEM AND 
+			$this->cache->isEnabled(CACHE_TYPE_MEM)  )
 		{
-			$this->routes = Route::routesByControllers( $this->controllers );
 			
-			if ( $this->cache->isEnabled(CACHE_TYPE_FILE) )
+			if (  $this->cache->exists('PTRoutes', CACHE_TYPE_MEM)  )
 			{
-				$this->cache->set('routes',$this->routes,null,CACHE_TYPE_FILE);
+				$this->routes = $this->cache->get('PTRoutes', CACHE_TYPE_MEM);
+				
+			}else{
+				$this->routes = Route::routesByControllers( $this->controllers );
+				$this->cache->set('PTRoutes',$this->routes,null,CACHE_TYPE_MEM);
 			}
 			
-		}else{
-			$this->routes = $this->cache->get('routes', CACHE_TYPE_FILE);
-		}
+		}else	
+		/*
+	
+			CACHE By Redis
+	
+		*/	
+		if ($this->env['route']['cacheType'] == CACHE_TYPE_REDIS AND 
+			$this->cache->isEnabled(CACHE_TYPE_REDIS)  )
+		{
+			
+			if (  $this->cache->exists('PTRoutes', CACHE_TYPE_REDIS)  )
+			{
+				$this->routes = $this->cache->get('PTRoutes', CACHE_TYPE_REDIS);
+				
+			}else{
+				$this->routes = Route::routesByControllers( $this->controllers );
+				$this->cache->set('PTRoutes',$this->routes,null,CACHE_TYPE_REDIS);
+			}
+			
+		}else		
+		/*
+	
+			CACHE By Files
 		
-		$this->findRoute();
+		*/	
+		if ($this->env['route']['cacheType'] == CACHE_TYPE_FILE AND 
+			$this->cache->isEnabled(CACHE_TYPE_FILE)  )
+		{
+			
+			if (  $this->cache->exists('PTRoutes', CACHE_TYPE_FILE)  )
+			{
+				$this->routes = $this->cache->get('PTRoutes', CACHE_TYPE_FILE);
+				
+			}else{
+				$this->routes = Route::routesByControllers( $this->controllers );
+				$this->cache->set('PTRoutes',$this->routes,null,CACHE_TYPE_FILE);
+			}
+			
+		}else
+		/*
+		
+			NO CACHE
+		
+		*/
+		{
+			$this->routes = Route::routesByControllers( $this->controllers );
+		}
+	
 	}
 	
 	/*
@@ -126,18 +234,25 @@ abstract class PHPTreeAbstract
 	*/
 	protected function findRoute() : void {
 
+
+		//Get route mapping key
+		$mapping_key = explode("/", $this->server['PTUri']);
+		$mapping_key = array_splice($mapping_key, 1);
+		$mapping_key = sizeof($mapping_key);
+		
 		/*
 		
 			Find route by Regex 
 			
 		*/
-		if ( $this->routes != null and
-			 $filter_route = array_filter(array_keys($this->routes), 
+		if ( $this->routes != null AND
+			 isset($this->routes[$mapping_key]) AND
+			 $filter_route = array_filter(array_keys($this->routes[$mapping_key]), 
 			 							  array($this , 'filter_requested_route') )  )
 		{
 		
 			$route_key	  = $filter_route[array_keys($filter_route)[0]];
-			$route 		  = $this->routes[$route_key];
+			$route 		  = $this->routes[$mapping_key][$route_key];
 		
 			/*
 				Confirm route and get Params
@@ -157,10 +272,12 @@ abstract class PHPTreeAbstract
 		{
 			$this->print404();
 		}
+		
+		unset($mapping_key);
 	}
 	/*
 	
-		Load route method and execute it 
+		Last stop , load route and execute it
 	
 	*/
 	private function loadRoute( $route ) : void {
@@ -178,27 +295,7 @@ abstract class PHPTreeAbstract
 				die();
 			}
 		}
-		/*
-		
-			Cache Ruote
-		
-		*/
-		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
-		{
-			//Already cached!
-			if ( $this->$cached_route != null )
-			{
-				$this->cache->getMem()->touch( "ruote_" . md5( $this->server['PTUri'] ) ,
-											   $this->env['cache']['memcached']['ruote_ttl'] );
-				
-			}else{
-				$this->cache->set("ruote_" . md5( $this->server['PTUri'] ) , 
-								   $route ,
-								   $this->env['cache']['memcached']['ruote_ttl'] ,
-								   CACHE_TYPE_MEM );
-			}
-		}
-		
+	
 		//Get current route params
 		if ( is_array($route['keys']) AND 
 			 sizeof($route['keys']) > 0  )
@@ -226,7 +323,7 @@ abstract class PHPTreeAbstract
 			return array();
 		}
 		
-		$path  = DIR . '/' . $this->env['system']['controllers'] . '/' . $folder; 
+		$path  = DIR . '/' . $this->env['controller']['dir'] . '/' . $folder; 
 			
 	   foreach (new \DirectoryIterator($path) as $file)
 	   {
@@ -234,11 +331,11 @@ abstract class PHPTreeAbstract
 	
 	  	   if ( is_dir( $path .  $file->getFilename() ) )
 		   {
-			   $this->getAllControllers( $file->getFilename() . "/" );
+			   $this->prepareControllers( $file->getFilename() . "/" );
 		   }else
 		   if( $file->isFile() )
 		   {
-				if ( preg_match('@controller_([a-z-A-Z-0-9_-]+)@',  $file->getFilename() , $m) )
+				if ( preg_match('@' . $this->env['controller']['prefix'] . '([a-z-A-Z-0-9_-]+)@',  $file->getFilename() , $m) )
 				{
 				   $this->controllers[$m[1]]['path']    = $path .  $file->getFilename() ;
 				   $this->controllers[$m[1]]['folder']  = $path;
