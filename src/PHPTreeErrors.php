@@ -7,7 +7,6 @@ class PHPTreeErrors extends \Exception
 	public static $dev 			 = true;
 	public static $error_message = "We're sorry, our system is temporarily unavailable due to technical issue.";
 	public static $logs_file	 = false;
-	public static $exceptions 	 = array();
 	public static $errors 		 = array();
 	public static $silence		 = array(E_USER_WARNING,E_WARNING,E_DEPRECATED);
 	
@@ -56,15 +55,15 @@ class PHPTreeErrors extends \Exception
 		//System in production we do not show full trace error 
 	 	if ( !PHPTreeErrors::$dev ) {
 		
-	 	$list = array( 'title'=> "Error",
-						'type' => 'Error', 
-						'trace' => '', 
-						'file'=> "", 
-						'line' => 0,
-						'message' => PHPTreeErrors::$error_message,
-						'string' => "",
-						'ts' => time(),
-						'date' => date("Y-m-d H:i:s", time() ));
+	 		$list = array( 'title'=> "Error",
+							'type' => 'Error', 
+							'trace' => '', 
+							'file'=> "", 
+							'line' => 0,
+							'message' => PHPTreeErrors::$error_message,
+							'string' => "",
+							'ts' => time(),
+							'date' => date("Y-m-d H:i:s", time() ));
 						
 	  		echo $this->compress_html( $this->repalce_arges($list, $this->prepareTemplate() ) );
 		
@@ -136,16 +135,16 @@ class PHPTreeErrors extends \Exception
 	    //System in production we do not show full trace error 
 	 	if ( !PHPTreeErrors::$dev ) {
 	 
-		 $list = array( 'title'=> "Exceptions",
-					    'type' => 'Exceptions', 
-						'trace' => '', 
-					    'file'=> "", 
-					    'line' => 0,
-						'message' => PHPTreeErrors::$error_message,
-						'string' => "",
-						'ts' => time(),
-						'date' => date("Y-m-d H:i:s", time() ) );
-						
+		 	$list = array( 'title'=> "Exceptions",
+					    	'type' => 'Exceptions', 
+							'trace' => '', 
+					    	'file'=> "", 
+					    	'line' => 0,
+							'message' => PHPTreeErrors::$error_message,
+							'string' => "",
+							'ts' => time(),
+							'date' => date("Y-m-d H:i:s", time() ) );
+							
 		  echo $this->compress_html( $this->repalce_arges($list, $this->prepareTemplate() ) );
 	 
 		}else
@@ -156,7 +155,7 @@ class PHPTreeErrors extends \Exception
 		
 		//Register exception
 		$list['trace'] = $e->getTrace();
-		PHPTreeErrors::$exceptions[] = $list;
+		PHPTreeErrors::$errors[] = $list;
 	 
 	 	unset($list);
 	}

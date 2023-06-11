@@ -1,17 +1,33 @@
 <?php
 namespace PHPTree\Core;
 
-use PHPTree\Core\PHPTreeAbstract;
-use PHPTree\Core\PHPTreeErrors;
+use PHPTree\Core\PHPTreeControllerManager AS ControllerManager;
+use PHPTree\Core\PHPTreeRouteManager AS RouteManager;
+use PHPTree\Core\PHPTreeCacheMemcached AS PTMEMCACHED;
+use PHPTree\Core\PHPTreeCacheRedis AS PTREDIS;
+use PHPTree\Core\PHPTreeCache AS PTCACHE;
+use PHPTree\Core\PHPTreeRoute as Route;
 use PHPTree\Core\PHPTreeLogs AS Logs;
+use PHPTree\Core\PHPTreeErrors;
 
-class PHPTreeCore extends PHPTreeAbstract  
+//Memcached
+define("CACHE_TYPE_MEM",   3);
+//Redis
+define("CACHE_TYPE_REDIS", 2);
+//File
+define("CACHE_TYPE_FILE",  1);
+
+class PHPTreeCore  
 {  
+	
 
-	function __destruct() {
-		$this->shutDown();
-	}
-	  
+	/*
+
+  	 	System Environment 
+ 	
+	*/
+	static array | null $env =  null;
+	
    /*
    		This is our shutdown function, in 
  		here we can do any last operations
@@ -20,80 +36,165 @@ class PHPTreeCore extends PHPTreeAbstract
 	public function shutdown() : void {
 		
 		//Already killed
-		if ( $this->env == null )
+		if ( static::$env == null )
 		{
 			return;
 		}
 	
 		//Write Logs 
-		if ( isset( $this->env['logs'] )  )
+		if ( isset( static::$env['logs'] )  )
 		{
-			//Log exceptions
-			if ( isset($this->env['logs']['exceptions']) AND 
-				$this->env['logs']['exceptions'] != null AND 
-				sizeof(PHPTreeErrors::$exceptions) > 0 )
-			{
-				Logs::writeLogs( DIR . '/' . $this->env['logs']['exceptions'],
-								 PHPTreeErrors::$exceptions);
-			}
-			
 			//Log errors 
-			if ( isset($this->env['logs']['errors']) AND
-				 $this->env['logs']['errors'] != null AND 
+			if ( isset(static::$env['logs']['errors']) AND
+				 static::$env['logs']['errors'] != null AND 
 				 sizeof(PHPTreeErrors::$errors) > 0 )
 			{
-				Logs::writeLogs( DIR . '/' . $this->env['logs']['errors'],
+				Logs::writeLogs( DIR . '/' . static::$env['logs']['errors'],
 								 PHPTreeErrors::$errors);
 			}
 		}
 		
 		//Disconnect servers
-		if ( $this->cache->isEnabled(CACHE_TYPE_MEM) )
+		if ( static::$env['cache']['memcached']['enabled']  AND PTMEMCACHED::$instance->mem != null )
 		{
-			$this->cache->disconnect(CACHE_TYPE_MEM);
+			PTMEMCACHED::quit();
 		}
 		
-		if ( $this->cache->isEnabled(CACHE_TYPE_REDIS) )
+		if ( static::$env['cache']['redis']['enabled'] AND PTREDIS::$instance->redis != null )
 		{
-			$this->cache->disconnect(CACHE_TYPE_REDIS);
+			PTREDIS::quit();
 		}
 		
 		//Clear logs 
 		PHPTreeErrors::$errors	   = array();
-		PHPTreeErrors::$exceptions = array();
 			
-		//Clean
-		$this->params   		= null;
-		$this->env      		= null;
-		$this->controllers 		= null;
-		$this->routes			= null;
-		$this->cache->cached	= null;
-		$this->cache			= null;
-		
 		//Bye bye
+		
 	}
 	  
 	public function __construct() {
 		
-		//setup environment 
-		
+		//Register shutdown
 		register_shutdown_function(array($this, 'shutdown'));
 
-		$this->setup_system_environment();
-		
-		if ( $this->env != null ){
+		//Get and parse system environment 
+		if ( PTCACHE::exists("PTEnv")  ){
 			
-			/*
-			
-				( EXECUTE ) 
-				Load and execute requested route by its controller 
-			
-			*/
-			$this->LoadAndExecuteRequest();
+			static::$env = PTCACHE::get("PTEnv");
 			
 		}else{
-			throw new \Exception('File ' . DIR . '.env.yaml does not exists , or not readable .');
+			
+			$envPath = DIR . "/.env.json";
+			
+			if ( file_exists($envPath) AND !is_dir($envPath) ) {
+				
+				$content = file_get_contents( $envPath );
+				$ndocs   = 0;
+			
+				static::$env = json_decode($content,true);
+				
+				if ( static::$env['cache']['file']['enabled']  )
+				{
+					PTCACHE::set( "PTEnv" , static::$env);
+				}							
+											
+			}
 		}
+
+		if ( static::$env != null )
+		{
+			
+			//Init controller manager
+			ControllerManager::build();
+		
+			//Init routing manager
+			RouteManager::build();
+			
+			//Auto load
+			spl_autoload_register(array($this,"autoLoad"));
+			spl_autoload_register(array($this,'autoloadPSR0'));
+		
+			//Auto init 
+			if ( isset(static::$env['autoload']['init']) AND sizeof(static::$env['autoload']['init']) > 0 )
+			{
+				foreach( static::$env['autoload']['init'] AS $classname )
+				{
+					new $classname();
+				}
+			}
+		
+			//Fetch current request URL route
+			if ( static::$env['route']['auto'] )
+			{
+				if ( $route = RouteManager::fetch() ) {
+					
+					RouteManager::load($route,array());
+					
+				}else
+				//Go 404
+				{
+					http_response_code(404);
+				}
+			}
+			
+		}else{
+			throw new \Exception('File .env does not exists , or not readable .');
+		}
+		
+	}
+	/*
+			
+		Auto load application classes
+		PSR-0
+	
+	*/	
+	function autoloadPSR0($className)
+	{
+		$className = ltrim($className, '\\');
+		$fileName  = '';
+		$namespace = '';
+		
+		if ($lastNsPos = strrpos($className, '\\')) {
+			$namespace = substr($className, 0, $lastNsPos);
+			$className = substr($className, $lastNsPos + 1);
+			$fileName  = DIR . '/' . str_replace('\\', DIRECTORY_SEPARATOR, $namespace) . DIRECTORY_SEPARATOR;
+		}
+		
+		$fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
+	
+		if ( file_exists( $fileName ) AND !is_dir($fileName) )
+		{
+			require($fileName);
+		}
+	}
+	/*
+			
+		Auto load application classes
+	
+	*/
+	private function autoLoad( $class ) : void {
+		
+		if ( !isset(static::$env['autoload']) )
+		{
+			return;
+		}
+		
+		if ( sizeof(static::$env['autoload']['classmap']) == 0 )
+		{
+			return;
+		}
+		
+		foreach( static::$env['autoload']['classmap'] AS $dir ){
+				
+			$root = DIR . '/' . $dir . "/" ;
+				
+			if ( file_exists( $root . $class . '.php'))
+			{
+				require( $root . $class . '.php');
+			}
+			
+		}
+		
 	}
 	
 }

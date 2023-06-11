@@ -1,4 +1,4 @@
-.env.yaml
+.env.json
 index.php
 /vendor
 /var
@@ -6,3 +6,4 @@ index.php
 .nova
 .git
 .htaccess
+app/

@@ -2,266 +2,60 @@
 
 namespace PHPTree\Core;
 
-//Memcached
-define("CACHE_TYPE_MEM", 3);
-//Redis
-define("CACHE_TYPE_REDIS", 2);
-//File
-define("CACHE_TYPE_FILE", 1);
 
 
-interface PHPTreeCacheIFace {
-	//Set cache
-	public function set($name,$value, $timestamp = 0) : bool;
-	//Get cache
-	public function get($key);
-	//Delete
-	public function delete($key) : void;
-	//If file exists
-	public function exists($key) : bool;
-	//Flush all caches 
-	public function flush() : void;	
-}
-
-	
-/*
-
-	REDIS
-	https://redis.io/
-
-*/
-class PTCR implements PHPTreeCacheIFace { 
-	
-	var $instance;
-
-	var $connected = false;
-	
-	/*
-		REDIS
-	*/
-	public function __construct(){
-	
-		if ( class_exists('Redis') )
-		{
-			$this->$instance = new \Redis();
-		}
-		
-	}
-	public function quit(){
-		
-		if ( $this->$instance != null  )
-		{
-			$this->$instance->close();
-			$this->connected = false;
-		}
-	}
-	/*
-		REDIS::SET
-	*/		
-	public function set($key,$value, $timestamp = 0) : bool{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Redis not connected!");
-		}
-		
-		$this->$instance->set($key, is_array($value) ? json_encode($value) : $value );
-		
-		return true;
-	}
-	/*
-		REDIS::GET
-	*/		
-	public function get($key) {
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Redis not connected!");
-		}
-		
-		$value = $this->$instance->get($key);
-		return ( @json_decode($value) ) ? json_decode($value,true) : $value;
-	}
-	/*
-		REDIS::EXISTS
-	*/	
-	public function exists($key) :  bool {
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Redis not connected!");
-		}
-		
-		return $this->$instance->exists($key);
-	}
-	/*
-		REDIS::DELETE
-	*/	
-	public function delete($key) : void{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Redis not connected!");
-		}
-		
-		$this->$instance->del($key);
-	}
-	/*
-		REDIS::FLUSH
-	*/	
-	public function flush() : void{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Redis not connected!");
-		}
-		
-		$this->$instance->flushAll();
-	}
-	/*
-		REDIS::ADD SERVER
-	*/
-	public function connect(string $host, int $port, int $timeout = 0){
-		
-		$this->$instance->connect($host, $port, $timeout);
-		
-		$this->connected   =  ( $this->$instance->time() != null );
-		
-	}	
-	
-}
-/*
-
-	Memcached
-	https://www.php.net/manual/en/book.memcached.php	
-
-*/
-class PTCMEM implements PHPTreeCacheIFace { 
-	
-	var $instance;
-	
-	var $connected = false;
-	
-	/*
-		MEM
-	*/
-	public function __construct(){
-	
-		if ( class_exists('Memcached') )
-		{
-			$this->$instance = new \Memcached();
-		}
-		
-	}
-	public function quit(){
-		
-		if ( $this->$instance != null  )
-		{
-			$this->$instance->quit();
-			$this->connected = false;
-		}
-	}
-	/*
-		MEM::SET
-	*/		
-	public function set($key,$value, $timestamp = 8400 * 3) : bool{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Memcached not connected!");
-		}
-		
-		$this->$instance->set($key, $value, $timestamp);
-		
-		return $this->$instance->getResultCode() == 0;
-	}
-	/*
-		MEM::GET
-	*/		
-	public function get($key) {
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Memcached not connected!");
-		}
-		
-		return $this->$instance->get($key);
-	}
-	/*
-		MEM::EXISTS
-	*/	
-	public function exists($key) :  bool {
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Memcached not connected!");
-		}
-		
-		return $this->$instance->get($key) != null;
-	}
-	/*
-		MEM::DELETE
-	*/	
-	public function delete($key) : void{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Memcached not connected!");
-		}
-		
-		$this->$instance->delete($key);
-	}
-	/*
-		MEM::FLUSH
-	*/	
-	public function flush() : void{
-		
-		if ( !$this->connected )
-		{
-			throw new \Exception("Memcached not connected!");
-		}
-		
-		$this->$instance->deleteMulti( $this->$instance->getAllKeys() );
-	}
-	/*
-		MEM::ADD SERVER
-	*/
-	public function addServer(string $host, int $port, int $weight = 0){
-		
-		$this->$instance->addServer($host, $port,$weight);
-		
-		$this->connected   =  ( $this->$instance->getStats() != null );
-		
-	}
-}
 /*
 
 	File caching inside cache directory
 
 */
-class PTCF implements PHPTreeCacheIFace { 
+class PHPTreeCache  { 
 	
 	/*
 		
 		Caching folder directory 
 	
 	*/
-	var $dir = "/var/cache/";
+	protected string $dir = "/var/cache/";
 	/*
 		
 		Cache info ( files system only )
 	
 	*/
-	var $referance = "_c_";
+	protected string $referance = "_c_";
 	
+	private static PHPTreeCache|null $instance = null;
 	
+	public static function init(){
+		
+		if ( PHPTreeCache::$instance == null )
+	    {
+		   PHPTreeCache::$instance = new PHPTreeCache();
+	    }
+	}
+	
+	public static function config( array $config ){
+		
+		PHPTreeCache::init();
+		
+		if ( isset($config['dir']) ){
+			PHPTreeCache::$instance->dir = $config['dir'];
+		}
+		
+		if ( isset($config['referance']) ){
+			PHPTreeCache::$instance->dir = $config['referance'];
+		}
+			
+	}
 	/*
 		FILE::SET
 	*/
-	public function set($key , $array , $timestamp = 0) : bool{
+	public static function set($key , $array , $timestamp = 0) : bool{
+		
+		PHPTreeCache::init();
 		
 		$name     = '_' . md5($key);
-		$filePath = DIR . $this->dir . $name . ".php";
+		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
 		$content  = '<?php $cache_' . $name . ' = "' . base64_encode(json_encode($array,true)) . '"; ?>';	
 			
 		if ( file_put_contents($filePath, $content) ) {
@@ -269,7 +63,7 @@ class PTCF implements PHPTreeCacheIFace {
 			//Set expired ( create or update cache folders information )
 			if ( $timestamp != null AND $timestamp > 0 )
 			{
-				$cacheInfoPath = DIR . $this->dir . $this->referance . ".php";
+				$cacheInfoPath = DIR . PHPTreeCache::$instance->dir . PHPTreeCache::$instance->referance . ".php";
 				$cacheInfo     = array();
 				
 				if ( file_exists($cacheInfoPath) )
@@ -301,10 +95,12 @@ class PTCF implements PHPTreeCacheIFace {
 	/*
 		FILE::GET
 	*/
-	public function get($key)  {
+	public static function get($key)  {
 		
+		PHPTreeCache::init();
+			
 		$name     = '_' . md5($key);
-		$filePath = DIR . $this->dir . $name . ".php";
+		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
 		
 		if (file_exists($filePath))
 		{
@@ -317,10 +113,12 @@ class PTCF implements PHPTreeCacheIFace {
 	/*
 		FILE::EXISTS
 	*/
-	public function exists($key) :  bool {
+	public static function exists($key) :  bool {
 		
+		PHPTreeCache::init();
+			
 		$name     = '_' . md5($key);
-		$filePath = DIR . $this->dir . $name . ".php";
+		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
 		{
@@ -333,10 +131,12 @@ class PTCF implements PHPTreeCacheIFace {
 	/*
 		FILE::DELETE
 	*/	
-	public function delete($key) : void{
+	public static function delete($key) : void{
 		
+		PHPTreeCache::init();
+			
 		$name     = '_' . md5($key);
-		$filePath = DIR . $this->dir . $name . ".php";
+		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
 		{
@@ -346,9 +146,11 @@ class PTCF implements PHPTreeCacheIFace {
 	/*
 		FILE::FLUSH
 	*/
-	public function flush() : void{
+	public static function flush() : void{
 		
-		$cacheInfoPath = DIR . $this->dir . $this->referance . ".php";
+		PHPTreeCache::init();
+			
+		$cacheInfoPath = DIR . PHPTreeCache::$instance->dir . PHPTreeCache::$instance->referance . ".php";
 		
 		if ( file_exists($cacheInfoPath) )
 		{
@@ -376,471 +178,6 @@ class PTCF implements PHPTreeCacheIFace {
 			$_cacheInfo	 = '<?php $cacheInfo = "' . $_cacheInfo . '"; ?>';	
 				
 			file_put_contents($cacheInfoPath, $_cacheInfo);	
-		}
-	}
-}
-
-/*
-
-	The parent of all cache types
-	
-*/
-class PHPTreeCache {
-	
-	/*
-
-   		memcached 
- 	
-	*/		
-	protected  $mem;
-	/*
-	
-		Redis 
-	 
-	*/			
-	protected $redis;
-	/*
-	
-	   File cache
-	 
-	*/	
-	protected  $file;
-	/*
-	
-	   System Environment 
-	 
-	*/
-	protected $env;
-	/*
-	
-	   Cached params
-	 
-	*/
-	public $cached = array();
-		
-	/*
-	
-		Read and cache Env 
-		also setup enabled caching algorithms 
-		example :
-		$api->cache->set | get | delete | flush | exists
-		
-		supported the following : 
-			
-		PTCF -> PHPTreeCacheFiles -> files and directories
-		PTCMEM -> PHPTreeCacheMemcached -> Memcached
-	
-	*/
-	public function __construct(){
-		
-		//initialize file caching
-		$this->file = new PTCF();
-		
-		//CACHED :: read from file
-		if ( !$this->exists('PTEnv',CACHE_TYPE_FILE) )
-		{
-			$this->env 	= $this->readYaml( DIR . "/.env.yaml");
-			
-			if ( $this->env['cache']['file']['enabled'] AND $this->env['prod'] )
-			{
-				$this->set('PTEnv',$this->env,null,CACHE_TYPE_FILE);
-			}
-			
-		}else
-		//No cached :: read and cache if enabled
-		{
-			$this->env = $this->get('PTEnv', CACHE_TYPE_FILE);
-		}
-		
-		//Setup redis if enabled 
-		if( $this->env != null AND 
-			$this->isEnabled(CACHE_TYPE_REDIS) AND
-			isset($this->env['cache']) AND 
-			isset($this->env['cache']['redis']) 
-			)
-		{
-			
-			//Redis is not installed!
-			if ( !class_exists('Redis') ){
-				throw new \Exception("Cache type Redis enabled but 'Redis' is not installed.");
-			}
-			
-			//initialize Redis
-			$this->redis = new PTCR();
-			
-			if ( isset($this->env['cache']['redis']['server']) AND 
-		   		 isset($this->env['cache']['redis']['port']) AND 
-				 isset($this->env['cache']['redis']['timeout']))
-			{
-				
-				$this->redis->connect($this->env['cache']['redis']['server'], 
-									  $this->env['cache']['redis']['port'],
-									  $this->env['cache']['redis']['timeout']);
-				
-			}
-		}
-		
-		//Setup memcached if enabled
-		if( $this->env != null AND 
-			$this->isEnabled(CACHE_TYPE_MEM) AND
-			isset($this->env['cache']) AND 
-			isset($this->env['cache']['memcached']) 
-			)
-		{
-			//Memcached is not installed!
-			if ( !class_exists('Memcached') ){
-				throw new \Exception("Cache type Memcached enabled but 'Memcached' is not installed.");
-			}
-			
-			//initialize memcached
-			$this->mem = new PTCMEM();
-			
-			if ( sizeof($this->env['cache']['memcached']['servers']) > 0 )
-			{
-				foreach( $this->env['cache']['memcached']['servers'] AS $server )
-				{
-					$this->mem->addServer($server['server'], $server['port'],  $server['weight']);
-				}
-			}
-		}
-	}
-	
-	/*
-		return memcached instance
-	*/
-	public function getMem() : \Memcached  | null{
-		return $this->mem->$instance;
-	}
-	/*
-		return Redis instance
-	*/
-	public function getRedis() : \Redis  | null{
-		return $this->redis->$instance;
-	}
-	/*
-		
-		return full Environment array
-		
-	*/
-	public function getEnvironment() : array | bool {
-		return $this->env;
-	}
-	/*
-		Flush all expired cache files
-		Call every 1 or 3 minutes from cronJob 
-	*/	
-	public function flush($type = CACHE_TYPE_FILE) : void
-	{
-		switch($type)
-		{
-			
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					$this->redis->flush();
-				}
-					
-			break;
-			/*
-			Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					$this->mem->flush();
-				}
-				
-			break;
-			/*
-				FILES
-			*/
-			case CACHE_TYPE_FILE:
-				
-				$this->file->flush();
-				
-			break;	
-		}
-		
-	}
-	/*
-		Close connection with specific type
-	*/
-	public function disconnect($type){
-		
-		switch($type)
-		{
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					 $this->redis->quit();
-				}
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					 $this->mem->quit();
-				}
-				
-			break;	
-		}
-	}
-	/*
-		IF specific type of caching is enabled 
-	*/
-	public function isEnabled($type) : bool {
-		
-		switch($type)
-		{
-			
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				return $this->env['cache']['redis']['enabled'];
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				return $this->env['cache']['memcached']['enabled'];
-				
-			break;
-			/*
-				FILES
-			*/
-			case CACHE_TYPE_FILE:
-				
-				return $this->env['cache']['file']['enabled'];
-				
-			break;	
-		}
-		
-		return false;
-	}
-	/*
-		if cache exists
-		@param key  = string 
-		@param type = Type of cache
-	*/
-	public function exists($key, $type = CACHE_TYPE_FILE){
-		
-		switch($type)
-		{
-			
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					return $this->redis->exists($key);
-				}
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					return $this->mem->exists($key);
-				}
-				
-			break;
-			/*
-				FILES
-			*/
-			case CACHE_TYPE_FILE:
-				
-				return $this->file->exists($key);
-				
-			break;	
-		}
-		
-		return false;
-	}
-	
-	/*
-		delete cache 
-		@param key = string 
-		@param type = Type of cache
-	*/
-	public function delete($key, $type = CACHE_TYPE_FILE ){
-		
-		switch($type)
-		{
-			
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					return $this->redis->delete($key);
-				}
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					return $this->mem->delete($key);
-				}
-				
-			break;
-			/*
-				FILES
-			*/
-			case CACHE_TYPE_FILE:
-				
-				$this->file->delete($key);
-				
-			break;	
-		}		
-		
-	}
-	
-	/*
-		get cache 
-		@param key = string 
-		@param type = Type of cache
-		
-		@return array 
-	*/
-	public function get($key, $type = CACHE_TYPE_FILE ){
-		
-		switch($type)
-		{
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					return $this->redis->get($key);
-				}
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					return $this->mem->get($key);
-				}
-				
-			break;
-			/*
-				FILES
-			*/
-			case CACHE_TYPE_FILE:
-				
-				return $this->file->get($key);
-				
-			break;		
-			default : 
-				return false;
-		}		
-		
-		return false;
-	}
-	
-	/*
-		Set cache 
-		@param key = string 
-		@param array = array only
-		@param timestamp = expire unix timestamp
-		@param type = Type of cache
-
-		@return boolean if set or not.
-	*/
-	public function set( $key , $array , $timestamp = 0 , $type = CACHE_TYPE_FILE ){
-
-		switch($type)
-		{
-			
-			/*
-				Redis
-			*/
-			case CACHE_TYPE_REDIS:
-				
-				if ( $this->redis != null ){
-					return $this->redis->set($key , $array , $timestamp );
-				}
-					
-			break;
-			/*
-				Memcached
-			*/
-			case CACHE_TYPE_MEM:
-				
-				if ( $this->mem != null ){
-					return $this->mem->set($key , $array , $timestamp );
-				}
-				
-			break;
-			/*
-				FILES 
-			*/
-			case CACHE_TYPE_FILE:
-				
-				if ( $this->isEnabled(CACHE_TYPE_FILE) )
-				{
-					return $this->file->set($key , $array , $timestamp );
-				}
-				
-			break;		
-			default : 
-			return false;
-		}
-		
-	}
-	/*
-	
-	   Read YAML file and return values 
-	   
-	*/
-	private $ndocs 		 = 0;
-	private $yaml		 = array();
-	
-	public function readYaml( $fullPath ) : array | false {
-		
-		//Return cached version 
-		if ( isset($this->yaml[md5($fullPath)]) AND $this->yaml[md5($fullPath)] != null )
-		{
-			return $this->yaml[md5($fullPath)];
-		}
-	
-		//Read , parse and return 
-		if ( file_exists($fullPath) AND !is_dir($fullPath) ) {
-			
-			$this->yaml[md5($fullPath)] = file_get_contents( $fullPath );
-			
-			$this->yaml[md5($fullPath)] = yaml_parse($this->yaml[md5($fullPath)], 
-													 0, 
-													 $this->ndocs, 
-													 array());
-													 
-			return $this->yaml[md5($fullPath)];
-			
-		}else{
-			return false ;
 		}
 	}
 }

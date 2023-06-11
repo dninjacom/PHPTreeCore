@@ -7,7 +7,8 @@ class PHPTreeLogs
 	/*
 	   Write logs
 	*/
-	public static function writeLogs( $file = null , $logs = array() ) : void{
+	public static function writeLogs( $file = null , $logs = array() ) : void
+	{
 		
 		if ( $file == null OR 
 			 is_dir($file) OR 
