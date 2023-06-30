@@ -75,7 +75,7 @@ class PHPTreeCacheRedis {
 	/*
 		REDIS::SET
 	*/		
-	public static function set($key,$value, $timestamp = 0) : bool{
+	public static function set($key,$value, $seconds = 0) : bool{
 		
 		static::init();
 			
@@ -84,7 +84,12 @@ class PHPTreeCacheRedis {
 			throw new \Exception("Redis not connected!");
 		}
 		
-		static::$instance->redis->set($key, is_array($value) ? json_encode($value) : $value );
+		static::$instance->redis->set($key, $value);
+			
+		if ( $seconds > 0 )
+		{
+			static::$instance->redis->expire($key, $seconds);
+		}
 		
 		return true;
 	}
@@ -100,8 +105,8 @@ class PHPTreeCacheRedis {
 			throw new \Exception("Redis not connected!");
 		}
 		
-		$value = static::$instance->redis->get($key);
-		return ( @json_decode($value) ) ? json_decode($value,true) : $value;
+		return static::$instance->redis->get($key);
+	
 	}
 	/*
 		REDIS::EXISTS

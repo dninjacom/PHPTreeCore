@@ -1,12 +1,9 @@
 <?php
 namespace PHPTree\Core;
 
-use PHPTree\Core\PHPTreeControllerManager AS ControllerManager;
-use PHPTree\Core\PHPTreeRouteManager AS RouteManager;
 use PHPTree\Core\PHPTreeCacheMemcached AS PTMEMCACHED;
 use PHPTree\Core\PHPTreeCacheRedis AS PTREDIS;
 use PHPTree\Core\PHPTreeCache AS PTCACHE;
-use PHPTree\Core\PHPTreeRoute as Route;
 use PHPTree\Core\PHPTreeLogs AS Logs;
 use PHPTree\Core\PHPTreeErrors;
 
@@ -19,14 +16,12 @@ define("CACHE_TYPE_FILE",  1);
 
 class PHPTreeCore  
 {  
-	
-
 	/*
 
   	 	System Environment 
  	
 	*/
-	static array | null $env =  null;
+	static array | null $env;
 	
    /*
    		This is our shutdown function, in 
@@ -53,6 +48,9 @@ class PHPTreeCore
 								 PHPTreeErrors::$errors);
 			}
 		}
+		
+		//Show debug panel 
+		Logs::debugger();
 		
 		//Disconnect servers
 		if ( static::$env['cache']['memcached']['enabled']  AND PTMEMCACHED::$instance->mem != null )
@@ -103,13 +101,6 @@ class PHPTreeCore
 
 		if ( static::$env != null )
 		{
-			
-			//Init controller manager
-			ControllerManager::build();
-		
-			//Init routing manager
-			RouteManager::build();
-			
 			//Auto load
 			spl_autoload_register(array($this,"autoLoad"));
 			spl_autoload_register(array($this,'autoloadPSR0'));
@@ -120,20 +111,6 @@ class PHPTreeCore
 				foreach( static::$env['autoload']['init'] AS $classname )
 				{
 					new $classname();
-				}
-			}
-		
-			//Fetch current request URL route
-			if ( static::$env['route']['auto'] )
-			{
-				if ( $route = RouteManager::fetch() ) {
-					
-					RouteManager::load($route,array());
-					
-				}else
-				//Go 404
-				{
-					http_response_code(404);
 				}
 			}
 			

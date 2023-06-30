@@ -1,10 +1,12 @@
 <?php
 namespace PHPTree\Core;
 
+use PHPTree\Core\PHPTreeCore AS CORE;
+
+
 class PHPTreeErrors extends \Exception
 {	
 
-	public static $dev 			 = true;
 	public static $error_message = "We're sorry, our system is temporarily unavailable due to technical issue.";
 	public static $logs_file	 = false;
 	public static $errors 		 = array();
@@ -21,11 +23,6 @@ class PHPTreeErrors extends \Exception
 		$args = func_get_args();
 		
 	
-		if ( in_array($args[0], PHPTreeErrors::$silence ))
-		{
-			return;
-		}
-		
 		if ( sizeof($args) == 0 )
 		{
 			return;
@@ -41,6 +38,14 @@ class PHPTreeErrors extends \Exception
 					  'ts' => time(),
 				 	  'date' => date("Y-m-d H:i:s", time() ));
 		
+		
+		if ( in_array($args[0], static::$silence ))
+		{
+			static::$errors[] = $list;
+			return;
+		}
+		
+		
 		//append current error to trace 
 		 $list['trace'] .= '<tr class="this">
 								   <td>
@@ -53,14 +58,14 @@ class PHPTreeErrors extends \Exception
 		 
 		 
 		//System in production we do not show full trace error 
-	 	if ( !PHPTreeErrors::$dev ) {
+	 	if ( CORE::$env['prod']  ) {
 		
 	 		$list = array( 'title'=> "Error",
 							'type' => 'Error', 
 							'trace' => '', 
 							'file'=> "", 
 							'line' => 0,
-							'message' => PHPTreeErrors::$error_message,
+							'message' => static::$error_message,
 							'string' => "",
 							'ts' => time(),
 							'date' => date("Y-m-d H:i:s", time() ));
@@ -75,7 +80,7 @@ class PHPTreeErrors extends \Exception
 		
 		//Register exception
 		$list['trace'] = array();
-		PHPTreeErrors::$errors[] = $list;
+		static::$errors[] = $list;
 	
 		exit();
 	}
@@ -133,14 +138,14 @@ class PHPTreeErrors extends \Exception
  		}
 	 
 	    //System in production we do not show full trace error 
-	 	if ( !PHPTreeErrors::$dev ) {
+	 	if (  CORE::$env['prod'] ) {
 	 
 		 	$list = array( 'title'=> "Exceptions",
 					    	'type' => 'Exceptions', 
 							'trace' => '', 
 					    	'file'=> "", 
 					    	'line' => 0,
-							'message' => PHPTreeErrors::$error_message,
+							'message' => static::$error_message,
 							'string' => "",
 							'ts' => time(),
 							'date' => date("Y-m-d H:i:s", time() ) );
@@ -155,7 +160,7 @@ class PHPTreeErrors extends \Exception
 		
 		//Register exception
 		$list['trace'] = $e->getTrace();
-		PHPTreeErrors::$errors[] = $list;
+		static::$errors[] = $list;
 	 
 	 	unset($list);
 	}

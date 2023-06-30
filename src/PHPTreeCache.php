@@ -3,7 +3,6 @@
 namespace PHPTree\Core;
 
 
-
 /*
 
 	File caching inside cache directory
@@ -28,22 +27,22 @@ class PHPTreeCache  {
 	
 	public static function init(){
 		
-		if ( PHPTreeCache::$instance == null )
+		if ( static::$instance == null )
 	    {
-		   PHPTreeCache::$instance = new PHPTreeCache();
+		   static::$instance = new PHPTreeCache();
 	    }
 	}
 	
 	public static function config( array $config ){
 		
-		PHPTreeCache::init();
+		static::init();
 		
 		if ( isset($config['dir']) ){
-			PHPTreeCache::$instance->dir = $config['dir'];
+			static::$instance->dir = $config['dir'];
 		}
 		
 		if ( isset($config['referance']) ){
-			PHPTreeCache::$instance->dir = $config['referance'];
+			static::$instance->referance = $config['referance'];
 		}
 			
 	}
@@ -52,10 +51,10 @@ class PHPTreeCache  {
 	*/
 	public static function set($key , $array , $timestamp = 0) : bool{
 		
-		PHPTreeCache::init();
+		static::init();
 		
 		$name     = '_' . md5($key);
-		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
+		$filePath = DIR . static::$instance->dir . $name . ".php";
 		$content  = '<?php $cache_' . $name . ' = "' . base64_encode(json_encode($array,true)) . '"; ?>';	
 			
 		if ( file_put_contents($filePath, $content) ) {
@@ -63,7 +62,7 @@ class PHPTreeCache  {
 			//Set expired ( create or update cache folders information )
 			if ( $timestamp != null AND $timestamp > 0 )
 			{
-				$cacheInfoPath = DIR . PHPTreeCache::$instance->dir . PHPTreeCache::$instance->referance . ".php";
+				$cacheInfoPath = DIR . static::$instance->dir . static::$instance->referance . ".php";
 				$cacheInfo     = array();
 				
 				if ( file_exists($cacheInfoPath) )
@@ -97,10 +96,10 @@ class PHPTreeCache  {
 	*/
 	public static function get($key)  {
 		
-		PHPTreeCache::init();
+		static::init();
 			
 		$name     = '_' . md5($key);
-		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
+		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if (file_exists($filePath))
 		{
@@ -115,10 +114,10 @@ class PHPTreeCache  {
 	*/
 	public static function exists($key) :  bool {
 		
-		PHPTreeCache::init();
+		static::init();
 			
 		$name     = '_' . md5($key);
-		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
+		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
 		{
@@ -133,10 +132,10 @@ class PHPTreeCache  {
 	*/	
 	public static function delete($key) : void{
 		
-		PHPTreeCache::init();
+		static::init();
 			
 		$name     = '_' . md5($key);
-		$filePath = DIR . PHPTreeCache::$instance->dir . $name . ".php";
+		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
 		{
@@ -148,9 +147,9 @@ class PHPTreeCache  {
 	*/
 	public static function flush() : void{
 		
-		PHPTreeCache::init();
+		static::init();
 			
-		$cacheInfoPath = DIR . PHPTreeCache::$instance->dir . PHPTreeCache::$instance->referance . ".php";
+		$cacheInfoPath = DIR . static::$instance->dir . static::$instance->referance . ".php";
 		
 		if ( file_exists($cacheInfoPath) )
 		{
