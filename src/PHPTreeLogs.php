@@ -3,6 +3,11 @@ namespace PHPTree\Core;
 
 use PHPTree\Core\PHPTreeErrors;
 use PHPTree\Core\PHPTreeRoute as Route;
+use PHPTree\Core\PHPTreeCore AS CORE;
+use PHPTree\Core\PHPTreeCacheMemcached AS PTMEMCACHED;
+use PHPTree\Core\PHPTreeSecure as Secure;
+use PHPTree\Core\PHPTreeCacheRedis AS PTREDIS;
+use PHPTree\Core\PHPTreeCache AS PTCACHE;
 
 
 class PHPTreeLogs 
@@ -52,17 +57,58 @@ class PHPTreeLogs
 	public static function addTab( string $title , string | array $content , int $badge = 0 ){
 		static::$customTabs[] = array('title' => $title , 'content' => $content , 'badge' => $badge);
 	}
+	/*
 	
+		System execution time 
+	
+	*/	
+	public static function executionTime() : float {
+		
+		return round( microtime(true) - START_TIME_DEBUG , 3);
+		
+	}
 	/*
 	
 		Debugger 
 	
 	*/
 	public static function debugger(){
+		 
+		
+		/*
+		
+			FLUSH TOKEN VALIDATION
+		
+		*/
+		
+		$data = Secure::safePost(); 
+		
+	
+		if ( isset($data['flush_token']) )
+		{
+			$token = Secure::validateToken( $data['flush_token'] );
+			
+			if ( $token->isValid() AND
+				 isset($token->payload['flush'])  )
+			{
+				
+				switch( $token->payload['flush']) {
+					
+					case "memcached":
+						PTMEMCACHED::flush();
+					break;
+					case "redis":
+						PTREDIS::flush();
+					break;
+					case "fc":
+						PTCACHE::flush(true);
+					break;
+				}
+			
+			}
+		}	
 		
 
-		//Args is debug bites each bite has title and its array of information
-		$args = func_get_args();
 		$tabs = static::$customTabs;
 		
 		//Make default tabs
@@ -72,8 +118,21 @@ class PHPTreeLogs
 		
 		if ( defined('START_TIME_DEBUG') )
 		{
-			$tab_performance['content'][] =  array('Execution time',  round( microtime(true) - START_TIME_DEBUG , 3) . "/ms" );
+			$tab_performance['content'][] =  array('Execution time',  static::executionTime() . "/ms" );
 		}
+		
+		//CPU load
+		if ( function_exists("sys_getloadavg") )
+		{
+			$tab_performance['content'][] =  array('Load average',  implode(",", sys_getloadavg()) );
+		}
+		
+		//Memory usage
+		if ( function_exists("memory_get_usage") )
+		{
+			$tab_performance['content'][] =  array('Memory usage', (memory_get_usage(false)/1024/1024) . "/MB" );
+		}
+
 		
 		foreach ( $_SERVER AS $key => $val ) {
 			$tab_performance['content'][] = array($key, $val);
@@ -87,30 +146,28 @@ class PHPTreeLogs
 		$tab_classes['content'][] =  array( implode(",<br />", get_declared_classes()) );
 		$tabs[] 				  =  $tab_classes;
 		
-		//Errors
-		$tab_errors				 = array();
-		$tab_errors['title']     = "Errors & Warnings"; 
-		$tab_errors['content'][] = array();
-		$tab_errors['badge']	 = count(PHPTreeErrors::$errors);
-			
+		//Errors / Warnings
 		if ( sizeof(PHPTreeErrors::$errors) > 0 )
 		{
+			$tab_errors				 = array();
+			$tab_errors['title']     = "Errors & Warnings"; 
+			$tab_errors['content'][] = array();
+			$tab_errors['badge']	 = count(PHPTreeErrors::$errors);
+			
 			foreach( PHPTreeErrors::$errors AS $error )
 			{
 				$tab_errors['content'][] = array( $error['file'],$error['line'],$error['message'] );	
 			}
+		
+			$tabs[] =  $tab_errors;
 		}
-	
-		$tabs[] =  $tab_errors;
 		
 		//Routes
 		$tab_routes				 = array();
 		$tab_routes['title']     = "Routes"; 
 		$tab_routes['content'][] = array();
+		$tab_routes['content'][] = array( "Path" , "Regex" , "Method" , "Loaded" , "Cached" , "Enabled");	
 			
-		$tab_routes['content'][] = array( "Path" , "Regex" , "Method" , "Loaded" , "Cached" );	
-			
-		//	echo "<pre>"; print_r( Route::getList());
 		if ( sizeof(Route::getList()) > 0 )
 		{
 			foreach( Route::getList()['routes'] AS $mapKey => $routes )
@@ -137,7 +194,8 @@ class PHPTreeLogs
 													  $route->loaded ? "<b>".$route->regex."</b>": $route->regex, 
 													  $route->loaded ? "<b>".$method."</b>": $method,  
 													  $route->loaded ? "<b>Yes</b>" : "No",
-													  ( $route->isCached ? "<b>Yes</b>" : "No") );	
+													  ( $route->isCached ? "<b>Yes</b>" : "No"),
+													  ( $route->isEnabled ? "<b>Yes</b>" : "No") );	
 				}
 				
 			}
@@ -145,6 +203,60 @@ class PHPTreeLogs
 		
 		$tabs[] =  $tab_routes;
 		
+			
+		//MEMCACHED 
+		if ( CORE::$env['cache']['memcached']['enabled']  )
+		{
+			PTMEMCACHED::init();
+			
+			//Flush token
+			$tab_memcached_ft 			= Secure::generateToken( ['flush'=>'memcached'] );
+			
+			$tab_memcached				= array();
+			$tab_memcached['title']     = "Memcached"; 
+			$tab_memcached['content'][] = array();
+			$tab_memcached['content'][] = array( "Enabled" , "Yes"  );
+			$tab_memcached['content'][] = array( "Flush all caches" , 
+											 	 "<form method='post'><button type=\"submit\">Flush</button><input type=\"hidden\" name=\"flush_token\" value=\"$tab_memcached_ft\"></form>"  );	
+			$tab_memcached['content'][] = array( "All Keys" , implode(",<br />", PTMEMCACHED::$instance->mem->getAllKeys() ) );
+			$tabs[] =  $tab_memcached;	
+		}	
+		
+		//REDIS
+		if ( CORE::$env['cache']['redis']['enabled']  )
+		{
+			PTREDIS::init();
+			
+			//Flush token
+			$tab_redis_ft 			= Secure::generateToken( ['flush'=>'redis'] );
+			
+			$tab_redis				= array();
+			$tab_redis['title']     = "Redis"; 
+			$tab_redis['content'][] = array();
+			$tab_redis['content'][] = array( "Enabled" , "Yes"  );
+			$tab_redis['content'][] = array( "Flush all caches" , 
+												  "<form method='post'><button type=\"submit\">Flush</button><input type=\"hidden\" name=\"flush_token\" value=\"$tab_redis_ft\"></form>"  );	
+			$tab_redis['content'][] = array( "All Keys" , implode(",<br />", PTREDIS::$instance->redis->keys('*') ) );
+			$tabs[] =  $tab_redis;	
+		}	
+		
+		//FILES
+		if ( CORE::$env['cache']['file']['enabled']  )
+		{
+			PTCACHE::init();
+			
+			//Flush token
+			$tab_fc_ft 			 = Secure::generateToken( ['flush'=>'fc'] );
+			
+			$tab_fc				 = array();
+			$tab_fc['title']     = "Cache file"; 
+			$tab_fc['content'][] = array();
+			$tab_fc['content'][] = array( "Enabled" , "Yes"  );
+			$tab_fc['content'][] = array( "Flush all caches" , 
+												  "<form method='post'><button type=\"submit\">Flush</button><input type=\"hidden\" name=\"flush_token\" value=\"$tab_fc_ft\"></form>"  );	
+			$tab_fc['content'][] = array( "All Keys" , implode(",<br />", PTCACHE::allKeys() ) );
+			$tabs[] =  $tab_fc;	
+		}	
 		
 		//Go Json format version 
 		if( isset($_REQUEST['debug_json']) )

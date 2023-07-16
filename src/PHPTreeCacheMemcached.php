@@ -59,7 +59,7 @@ class PHPTreeCacheMemcached  {
 	/*
 		MEM::SET
 	*/		
-	public static function set($key,$value, $timestamp = 8400 * 3) : bool{
+	public static function set($key,$value, int  $timestamp = 8400 * 3) : bool{
 		
 		static::init();
 			

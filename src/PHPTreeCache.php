@@ -25,6 +25,29 @@ class PHPTreeCache  {
 	
 	private static PHPTreeCache|null $instance = null;
 	
+	
+	private static function hash($key) : string {
+		return '_' . str_replace("=" , "" , base64_encode($key) );
+	}
+	
+	public static function allKeys() : array {
+		
+		$keys = array();
+		$dir  = array_diff(scandir( DIR . static::$instance->dir  ), array('.', '..'));
+		
+		foreach( $dir AS $file ){
+			
+			if ( substr($file, 0,1) == "."){
+				continue;
+			}
+			
+			$file   = str_replace(array('.php','_'), '', $file);
+			$keys[] = base64_decode($file);
+		}
+		
+		return $keys;
+	}
+	
 	public static function init(){
 		
 		if ( static::$instance == null )
@@ -53,7 +76,7 @@ class PHPTreeCache  {
 		
 		static::init();
 		
-		$name     = '_' . md5($key);
+		$name     = static::hash($key);
 		$filePath = DIR . static::$instance->dir . $name . ".php";
 		$content  = '<?php $cache_' . $name . ' = "' . base64_encode(json_encode($array,true)) . '"; ?>';	
 			
@@ -98,7 +121,7 @@ class PHPTreeCache  {
 		
 		static::init();
 			
-		$name     = '_' . md5($key);
+		$name     = static::hash($key);
 		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if (file_exists($filePath))
@@ -116,7 +139,7 @@ class PHPTreeCache  {
 		
 		static::init();
 			
-		$name     = '_' . md5($key);
+		$name     = static::hash($key);
 		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
@@ -134,7 +157,7 @@ class PHPTreeCache  {
 		
 		static::init();
 			
-		$name     = '_' . md5($key);
+		$name     = static::hash($key);
 		$filePath = DIR . static::$instance->dir . $name . ".php";
 		
 		if ( file_exists($filePath))
@@ -145,12 +168,26 @@ class PHPTreeCache  {
 	/*
 		FILE::FLUSH
 	*/
-	public static function flush() : void{
+	public static function flush(  bool $force = false ) : void{
 		
 		static::init();
 			
 		$cacheInfoPath = DIR . static::$instance->dir . static::$instance->referance . ".php";
 		
+		if ( $force )
+		{
+			$dir  = array_diff(scandir( DIR . static::$instance->dir  ), array('.', '..'));
+			
+			foreach( $dir AS $file ){
+				
+				if ( substr($file, 0,1) == "."){
+					continue;
+				}
+				
+				unlink(DIR . static::$instance->dir . "/" . $file );
+			}
+			
+		}else
 		if ( file_exists($cacheInfoPath) )
 		{
 			include_once($cacheInfoPath);

@@ -28,7 +28,7 @@ class PHPTreeCore
  		here we can do any last operations
   		before the script is complete.
    */
-	public function shutdown() : void {
+	private function shutdown() : void {
 		
 		//Already killed
 		if ( static::$env == null )
@@ -50,7 +50,11 @@ class PHPTreeCore
 		}
 		
 		//Show debug panel 
-		Logs::debugger();
+		if ( isset( static::$env['debug'] ) AND static::$env['debug'] )
+		{
+			Logs::debugger();
+		}
+		
 		
 		//Disconnect servers
 		if ( static::$env['cache']['memcached']['enabled']  AND PTMEMCACHED::$instance->mem != null )
@@ -125,7 +129,7 @@ class PHPTreeCore
 		PSR-0
 	
 	*/	
-	function autoloadPSR0($className)
+	private function autoloadPSR0($className)
 	{
 		$className = ltrim($className, '\\');
 		$fileName  = '';

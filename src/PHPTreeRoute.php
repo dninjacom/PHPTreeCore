@@ -223,7 +223,7 @@ class PHPTreeRoute
 		
 		unset($route_uri,$mapping_key,$list);
 		
-		if ( $route->isEnabled )
+		if ( $route != null AND $route->isEnabled )
 		{
 			return $route;
 		}else{
@@ -313,7 +313,7 @@ class PHPTreeRoute
 			CORE::$env['cache']['memcached']['enabled']  )
 		{
 	
-			PTMEMCACHED::set('PTRoutes',serialize(static::$list),null);
+			PTMEMCACHED::set('PTRoutes',serialize(static::$list));
 				
 		}else	
 		/*
