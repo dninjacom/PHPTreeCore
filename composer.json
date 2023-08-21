@@ -2,6 +2,7 @@
     "name": "phptree/core",
     "type": "library",
     "license": "MIT",
+    "description" : "The world's lightweight PHP framework",
     "authors": [
         {
             "name": "PHPTree ( support )",
