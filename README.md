@@ -34,15 +34,15 @@ project ( Private directory )
 
 ## Inside the framework
 
- * Routing
- * MySQL PDO
- * Logger
- * Debugger
- * <a class="btn btn-round btn-outline-dark m-t" href="https://www.phptree.org#secure_request">Secure</a>
- * JWT
- * Redis
- * Memcached
- * Files cache
+ * <a href="https://getcomposer.org#route_basics">Routing</a>
+ * <a href="https://getcomposer.org#mysql_pdo">SQL/PDO</a>
+ * <a href="https://getcomposer.org#env_logs">Logger</a>
+ * <a href="https://getcomposer.org#debugger">Debugger</a>
+ * <a href="https://getcomposer.org#secure_request">Secure</a>
+ * <a href="https://getcomposer.org#secure_jwt">JWT</a>
+ * <a href="https://getcomposer.org#caching_redis">Redis</a>
+ * <a href="https://getcomposer.org#caching_memcached">Memcached</a>
+ * <a href="https://getcomposer.org#caching_file">Files cache</a>e
  
 
 ## Documentation
