@@ -1,6 +1,7 @@
 <h1 align=center><a href="https://www.phptree.org">PHPTree</a></h1>
 
-<h2>THE CORE</h2>
+
+<h2 align=center>THE CORE</h2>
 
 <p align=center>
 The world's lightweight PHP framework
