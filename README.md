@@ -1,6 +1,9 @@
-<h1 align=center><a href="https://www.phptree.org">PHPTree</a></h1>
+<p align="center">
+<img  src="https://www.phptree.org/assets/img/apple-touch-icon.png"  width="100">
+</p>
 
-<h3 align=center>THE CORE</h3>
+<h1 align=center><a href="https://www.phptree.org">PHPTree</a></h1>
+<h3>CORE</h3>
 
 <p align=center>
 The world's lightweight PHP framework
