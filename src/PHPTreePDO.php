@@ -1,5 +1,5 @@
 <?php
-namespace PHPTree\DB;
+namespace PHPTree\Core;
 
 use PDO;
 use PDOException;
