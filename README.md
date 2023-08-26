@@ -1,12 +1,11 @@
 <p align="center">
 <img  src="https://www.phptree.org/assets/img/apple-touch-icon.png"  width="100">
-</p>
 
 <h1 align=center><a href="https://www.phptree.org">PHPTree</a></h1>
-<h3>CORE</h3>
+<h3 align=center>CORE</h3>
 
-<p align=center>
 The world's lightweight PHP framework
+
 </p>
 
 We promise , it will always remain simple to understand and fast to perform . 🫡 
