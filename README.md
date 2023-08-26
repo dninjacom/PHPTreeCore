@@ -42,7 +42,7 @@ project ( Private directory )
  * <a href="https://getcomposer.org#secure_jwt">JWT</a>
  * <a href="https://getcomposer.org#caching_redis">Redis</a>
  * <a href="https://getcomposer.org#caching_memcached">Memcached</a>
- * <a href="https://getcomposer.org#caching_file">Files cache</a>e
+ * <a href="https://getcomposer.org#caching_file">Files cache</a>
  
 
 ## Documentation
