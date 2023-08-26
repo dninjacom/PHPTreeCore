@@ -4,7 +4,7 @@
 The world's lightweight PHP framework
 </p>
 
-We promis , it will always remain simple to undertans and fast to preform .
+We promise , it will always remain simple to understand and fast to perform . 🫡 
 
 -----
 
