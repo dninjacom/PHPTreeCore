@@ -4,15 +4,17 @@
 The world's lightweight PHP framework
 </p>
 
+We promis , it will always remain simple to undertans and fast to preform .
+
 -----
 
 ## Installation
 
-Use <a href="https://getcomposer.org/" target="_blank">Composer</a>. To setup a new PHPTree project
+Install a fresh new PHPTree Project with examples using <a href="https://getcomposer.org/" target="_blank">Composer</a>. 
 
-`composer create-project phptree/phptree`
+```shcomposer create-project phptree/phptree```
 
-Life is simple!
+Life is simple! 😍
 
 ## Project settings
 
@@ -23,6 +25,7 @@ project ( Private directory )
 └── .env.json ( Hidden project settings file ) 
 ```
 
+
 ## Server Requierments
 
  * PHP >= 8.0.0
@@ -32,4 +35,4 @@ project ( Private directory )
 
 ## Documentation
 
-<h1 align=center><a href="https://www.phptree.org">Read More</a></h1>
+<a href="https://www.phptree.org">Read More</a> 🧐
