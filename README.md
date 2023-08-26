@@ -12,7 +12,9 @@ We promise , it will always remain simple to understand and fast to perform . ğŸ
 
 Install a fresh new PHPTree Project with examples using <a href="https://getcomposer.org/" target="_blank">Composer</a>. 
 
-```sh composer create-project phptree/phptree```
+```sh 
+composer create-project phptree/phptree
+```
 
 Life is simple! ğŸ˜
 
