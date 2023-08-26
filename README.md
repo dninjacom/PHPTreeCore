@@ -26,14 +26,24 @@ project ( Private directory )
 │   └── index.php 
 └── .env.json ( Hidden project settings file ) 
 ```
-
-
 ## Server Requierments
 
  * PHP >= 8.0.0
  * PDO PHP Extension
  * OpenSSL PHP Extension
 
+## Inside the framework
+
+ * Routing
+ * MySQL PDO
+ * Logger
+ * Debugger
+ * <a class="btn btn-round btn-outline-dark m-t" href="#secure_request">Secure</a>
+ * JWT
+ * Redis
+ * Memcached
+ * Files cache
+ 
 
 ## Documentation
 
