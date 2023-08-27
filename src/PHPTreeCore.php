@@ -141,7 +141,8 @@ class PHPTreeCore
 			$fileName  = DIR . '/' . str_replace('\\', DIRECTORY_SEPARATOR, $namespace) . DIRECTORY_SEPARATOR;
 		}
 		
-		$fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
+		//$fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
+		$fileName .= $className . '.php';
 	
 		if ( file_exists( $fileName ) AND !is_dir($fileName) )
 		{
