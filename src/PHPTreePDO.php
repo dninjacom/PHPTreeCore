@@ -60,8 +60,8 @@ class PHPTreePDO {
 				$this->is_connected = true;
 				 
 		} catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return null;
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
 		}
 	}
 
@@ -137,9 +137,9 @@ class PHPTreePDO {
 			return $prepare;
 		 
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return false;
-		}	 
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
+		} 
 	}
 	
 	/**
@@ -164,8 +164,8 @@ class PHPTreePDO {
 			  }
 		
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return false;
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
 		}	 
 	}
 	
@@ -200,8 +200,8 @@ class PHPTreePDO {
 			}
 		
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return 0;
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
 		}	 
 	}
 	
@@ -226,9 +226,9 @@ class PHPTreePDO {
 			}
 		
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return false;
-		}	 
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
+		} 
 	}
 	
 	/**
@@ -252,8 +252,8 @@ class PHPTreePDO {
 			}
 		
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return false;
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
 		}	 
 	}
 	
@@ -279,8 +279,8 @@ class PHPTreePDO {
 			}
 		
 		}catch (PDOException $e) {
-			PHPTreePDO::$errors[] = $e->getMessage();
-			return false;
+			static::$errors[] = $e->getMessage();
+			throw new PDOException($e);
 		}	 
 	}
 	
@@ -306,8 +306,8 @@ class PHPTreePDO {
 				}
 			 
 			}catch (PDOException $e) {
-				PHPTreePDO::$errors[] = $e->getMessage();
-				return false;
+				static::$errors[] = $e->getMessage();
+				throw new PDOException($e);
 			}
 	 }
 }
