@@ -47,8 +47,10 @@ class PHPTreeSecure  {
 		
 		if ( sizeof($array) > 0 ) {
 			
-			foreach( $array AS $k => $v )
+			if ( is_array($v) )
 			{
+				$safe_array[$k] = static::safeArray($v, $encoding);
+			}else{
 				$safe_array[$k]  = static::safeInput(  $v, $encoding );
 			}
 			
