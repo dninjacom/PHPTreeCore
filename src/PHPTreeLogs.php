@@ -84,29 +84,31 @@ class PHPTreeLogs
 		$data = Secure::safePost(); 
 		
 	
-		if ( isset($data['flush_token']) )
-		{
-			$token = Secure::validateToken( $data['flush_token'] );
-			
-			if ( $token->isValid() AND
-				 isset($token->payload['flush'])  )
+		try{
+			if ( isset($data['flush_token']) )
 			{
-				
-				switch( $token->payload['flush']) {
-					
-					case "memcached":
-						PTMEMCACHED::flush();
-					break;
-					case "redis":
-						PTREDIS::flush();
-					break;
-					case "fc":
-						PTCACHE::flush(true);
-					break;
-				}
-			
-			}
-		}	
+				$token = Secure::validateToken( $data['flush_token'] );
+						if ( $token->isValid() AND
+							 isset($token->payload['flush'])  )
+						{
+							
+							switch( $token->payload['flush']) {
+								
+								case "memcached":
+									PTMEMCACHED::flush();
+								break;
+								case "redis":
+									PTREDIS::flush();
+								break;
+								case "fc":
+									PTCACHE::flush(true);
+								break;
+							}
+						
+						}
+												
+			}	
+		}catch (\Exception $e){}
 		
 
 		$tabs = static::$customTabs;
@@ -217,8 +219,9 @@ class PHPTreeLogs
 			$tab_memcached['content'][] = array();
 			$tab_memcached['content'][] = array( "Enabled" , "Yes"  );
 			$tab_memcached['content'][] = array( "Flush all caches" , 
-											 	 "<form method='post'><button type=\"submit\">Flush</button><input type=\"hidden\" name=\"flush_token\" value=\"$tab_memcached_ft\"></form>"  );	
-			$tab_memcached['content'][] = array( "All Keys" , implode(",<br />", PTMEMCACHED::$instance->mem->getAllKeys() ) );
+												  "<form method='post'><button type=\"submit\">Flush</button><input type=\"hidden\" name=\"flush_token\" value=\"$tab_memcached_ft\"></form>"  );	
+			$memekeys = PTMEMCACHED::$instance->mem->getAllKeys();									  
+			$tab_memcached['content'][] = ( is_array($memekeys) )? array( "All Keys" , implode(",<br />", $memekeys ) ) : [];
 			$tabs[] =  $tab_memcached;	
 		}	
 		
@@ -262,27 +265,27 @@ class PHPTreeLogs
 		if( isset($_REQUEST['debug_json']) )
 		{
 			echo json_encode($tabs , true );
-		    exit();
+			exit();
 		}
 		
 		//Printout debugging content 
 		echo '<style>
 				#debugger .tabs {
-		  			display: flex;
-		  			flex-wrap: wrap;
-		  			width: 100%;
+					  display: flex;
+					  flex-wrap: wrap;
+					  width: 100%;
 					padding-top : 100px;
 					font-family : "Verdana"
 				}
 				#debugger .tabs label {
-		  			order: 1;
-		  			justify-content: center;
-		  			align-items: center;
-		  			padding: 1rem 2rem;
-		  			margin-right: 0.2rem;
-		  			cursor: pointer;
-		  			background-color: #faf8ee;
-		  			transition: background ease 0.5s;
+					  order: 1;
+					  justify-content: center;
+					  align-items: center;
+					  padding: 1rem 2rem;
+					  margin-right: 0.2rem;
+					  cursor: pointer;
+					  background-color: #faf8ee;
+					  transition: background ease 0.5s;
 					border-radius: 15px 15px 0px 0px;
 					font-size: 14px;
 					font-weight: normal;
@@ -303,24 +306,24 @@ class PHPTreeLogs
 					right : 4px;
 				}
 				#debugger .tabs .tab {
-		  			order: 9;
-		  			flex-grow: 1;
-		  			width: 100%;
-		  			height: 100%;
-		  			display: none;
-		  			padding: 1rem;
-		  			background: #d0deac;
-		  			padding: 20px;
+					  order: 9;
+					  flex-grow: 1;
+					  width: 100%;
+					  height: 100%;
+					  display: none;
+					  padding: 1rem;
+					  background: #d0deac;
+					  padding: 20px;
 				}
 				#debugger .tabs input[type="radio"] {
-		  			display: none;
+					  display: none;
 				}
 				#debugger .tabs input[type="radio"]:checked + label {
-		  			background: #d0deac;
+					  background: #d0deac;
 					color : #4b513a;
 				}
 				#debugger .tabs input[type="radio"]:checked + label + .tab {
-		  			display: block;
+					  display: block;
 				}
 				#debugger table {
 					  border-radius: 5px;
@@ -369,15 +372,15 @@ class PHPTreeLogs
 								{
 									echo "<td>
 											$contentBite
-								   	  	  </td>";
+											   </td>";
 								}
 							echo "</tr>";
 							
 						}else{
 							echo "<tr>
-							   		<td>
+									   <td>
 										$content
-							  		</td>
+									  </td>
 								</tr>";
 						}
 					}
